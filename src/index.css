@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 61 90 254; /* #3D5AFE */
+    --color-primary-light: 92 116 255;
+    --color-primary-dark: 41 66 214;
+    
+    --color-secondary: 241 245 249;
+    --color-secondary-dark: 226 232 240;
+    
+    --color-success: 34 197 94;
+    --color-warning: 234 179 8;
+    --color-error: 239 68 68;
+    
+    --color-text: 15 23 42;
+    --color-text-light: 100 116 139;
+  }
+  
+  html {
+    @apply antialiased;
+  }
+  
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-medium text-slate-900;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-dark hover:shadow-md active:transform active:scale-[0.98];
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 active:bg-slate-100;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+  
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+  
+  .btn-lg {
+    @apply px-5 py-2.5 text-lg;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-200 backdrop-blur-sm;
+  }
+  
+  .input {
+    @apply block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors duration-200;
+  }
+  
+  .select {
+    @apply block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white transition-colors duration-200;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-blue {
+    @apply bg-blue-100 text-blue-800;
+  }
+  
+  .badge-green {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .badge-yellow {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-red {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .badge-gray {
+    @apply bg-slate-100 text-slate-800;
+  }
+
+  /* Glass effect for cards */
+  .glass {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20;
+  }
+
+  /* Modern table styles */
+  .modern-table {
+    @apply w-full border-collapse;
+  }
+
+  .modern-table th {
+    @apply px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider bg-slate-50/50 backdrop-blur-sm;
+  }
+
+  .modern-table td {
+    @apply px-4 py-3 text-sm text-slate-600 border-t border-slate-200;
+  }
+
+  .modern-table tr:hover {
+    @apply bg-slate-50/50 backdrop-blur-sm transition-colors duration-200;
+  }
+
+  /* Modern scrollbar */
+  .modern-scrollbar {
+    @apply scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400;
+  }
+
+  /* Animations */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { 
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba(61, 90, 254, 0.4);
+    }
+    50% { 
+      opacity: .8;
+      box-shadow: 0 0 0 15px rgba(61, 90, 254, 0);
+    }
+  }
+}
