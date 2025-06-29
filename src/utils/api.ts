@@ -1,6 +1,7 @@
 import { handleApiResponse } from './errors.js';
+import { logger } from './logger.js';
 
-// Using relative path since we're using Vite's proxy
+// Get API base URL from environment variable
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 if (!API_BASE_URL) {
   throw new Error('VITE_API_URL environment variable is not set');
@@ -13,29 +14,57 @@ interface RequestOptions extends RequestInit {
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { params, ...init } = options;
 
-  // Add query parameters if provided
-  const url = new URL(API_BASE_URL + endpoint, window.location.origin);
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.append(key, value);
-      }
+  try {
+    // Construct the full URL
+    let baseUrl = '';
+    if (API_BASE_URL.startsWith('http')) {
+      // If it's a full URL, use it as is
+      baseUrl = API_BASE_URL;
+    } else if (typeof window !== 'undefined') {
+      // In browser environment, use window.location.origin
+      baseUrl = window.location.origin + API_BASE_URL;
+    } else {
+      // Fallback for non-browser environment
+      baseUrl = API_BASE_URL;
+    }
+
+    // Add query parameters if provided
+    const url = new URL(endpoint, baseUrl);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          url.searchParams.append(key, value);
+        }
+      });
+    }
+
+    // Set default headers
+    const headers = new Headers(init.headers);
+    if (!headers.has('Content-Type') && init.method !== 'GET') {
+      headers.set('Content-Type', 'application/json');
+    }
+
+    logger.debug('Making API request', {
+      method: init.method || 'GET',
+      url: url.toString(),
+      headers: Object.fromEntries(headers.entries()),
+      params
     });
+
+    const response = await fetch(url.toString(), {
+      ...init,
+      headers,
+      credentials: 'include'
+    });
+
+    return handleApiResponse<T>(response);
+  } catch (error) {
+    logger.error('API request failed:', {
+      endpoint,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
   }
-
-  // Set default headers
-  const headers = new Headers(init.headers);
-  if (!headers.has('Content-Type') && init.method !== 'GET') {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  const response = await fetch(url.toString(), {
-    ...init,
-    headers,
-    credentials: 'include'
-  });
-
-  return handleApiResponse<T>(response);
 }
 
 export interface Source {
