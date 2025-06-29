@@ -1,10 +1,11 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { connectToMongoDB } from './src/lib/mongodb';
-import { Table } from './src/models/Table';
-import { Source } from './src/models/Source';
-import { AuditLog } from './src/models/AuditLog';
-import { SyncJob } from './src/models/SyncJob';
+import { connectToMongoDB } from './src/lib/mongodb.js';
+import Table from './src/models/Table.js';
+import Source from './src/models/Source.js';
+import AuditLog from './src/models/AuditLog.js';
+import SyncJob from './src/models/SyncJob.js';
 import { z } from 'zod';
 import { validate } from './src/middleware/validation.js';
 import { handleError, AppError } from './src/utils/errors.js';

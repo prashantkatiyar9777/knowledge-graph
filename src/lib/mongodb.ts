@@ -10,6 +10,11 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 5000; // 5 seconds
 
+console.log('Environment variables:', {
+  MONGODB_URI: MONGODB_URI ? 'Set' : 'Not set',
+  NODE_ENV,
+});
+
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env');
 }

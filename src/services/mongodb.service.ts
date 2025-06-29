@@ -1,6 +1,6 @@
 import { Source, Table, AuditLog, SyncJob, Relationship, ValueField } from '../types/index.js';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export class MongoDBService {
   private static async fetchAPI(endpoint: string, options: RequestInit = {}) {
