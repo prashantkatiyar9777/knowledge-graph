@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useTableStore } from '../../hooks/useTableStore.ts';
+import { useTableStore } from '../../hooks/useTableStore.js';
+import useDataStore from '../../stores/dataStore.js';
 import { 
   Plus, Search, Filter, Download, RefreshCw, Edit, 
   Eye, Database, Check, AlertCircle,
   ArrowDownUp, Info, X, ChevronDown 
 } from 'lucide-react';
-import { TableMetadataEditor } from "../../components/modals/TableMetadataEditor.tsx";
-import { ConversionModal } from "../../components/modals/ConversionModal.tsx";
-import BulkTableEditor from "../../components/modals/BulkTableEditor.tsx";
-import { Button, Input, Select, Badge, Card } from "../../components/ui/index.ts";
-import { Table } from "../../types/index.ts";
-import { cn } from "../../utils/cn.ts";
-import Loading from "../../components/ui/Loading.tsx";
-import ErrorBoundary from "../../components/ui/ErrorBoundary.tsx";
+import { TableMetadataEditor } from "../../components/modals/TableMetadataEditor.js";
+import { ConversionModal } from "../../components/modals/ConversionModal.js";
+import BulkTableEditor from "../../components/modals/BulkTableEditor.js";
+import { Button, Input, Select, Badge, Card } from "../../components/ui/index.js";
+import { Table } from "../../types/index.js";
+import { cn } from "../../utils/cn.js";
+import Loading from "../../components/ui/Loading.js";
+import ErrorBoundary from "../../components/ui/ErrorBoundary.js";
 
 interface TableData {
   _id: string;
@@ -29,6 +30,7 @@ interface TableData {
 
 const Tables: React.FC = () => {
   const { tables, selectedTables, toggleTableSelection, setSelectedTables, updateTable, fetchTables } = useTableStore();
+  const { sources, fetchSources } = useDataStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -46,28 +48,22 @@ const Tables: React.FC = () => {
   const [tablesData, setTablesData] = useState<TableData[]>([]);
 
   useEffect(() => {
-    fetchTablesData();
-  }, []);
-
-  const fetchTablesData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('http://localhost:3000/api/tables');
-      if (!response.ok) {
-        throw new Error('Failed to fetch tables');
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([fetchTables(), fetchSources()]);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      } finally {
+        setLoading(false);
       }
-      const data = await response.json();
-      setTablesData(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch tables');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    loadData();
+  }, [fetchTables, fetchSources]);
 
   // Filter and sort tables
-  const filteredTables = tablesData.filter(table => {
+  const filteredTables = tables.filter(table => {
     const matchesSearch = 
       table.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (table.alternativeNames || []).some(name => name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -94,11 +90,13 @@ const Tables: React.FC = () => {
     currentPage * itemsPerPage
   );
 
-  const sources = [
+  // Convert sources array to options format
+  const sourceOptions = [
     { value: 'all', label: 'All Sources' },
-    { value: '68602fe792b91da5a0070422', label: 'Intelex Suite EHS' },
-    { value: '68602fe792b91da5a0070423', label: 'Azure IoT Suite' },
-    { value: '68602fe792b91da5a0070424', label: 'SAP HANA ERP' }
+    ...sources.map(source => ({
+      value: source._id.toString(),
+      label: source.name
+    }))
   ];
 
   const statuses = [
@@ -234,14 +232,14 @@ const Tables: React.FC = () => {
               }}
               className="inline-flex items-center justify-between w-48 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <span>{sources.find(s => s.value === filterSource)?.label}</span>
+              <span>{sourceOptions.find(s => s.value === filterSource)?.label}</span>
               <ChevronDown size={16} className="ml-2 text-slate-400" />
             </button>
             
             {showSourceDropdown && (
               <div className="absolute z-10 w-48 mt-1 bg-white rounded-md shadow-lg border border-slate-200">
                 <div className="py-1">
-                  {sources.map((source) => (
+                  {sourceOptions.map((source) => (
                     <button
                       key={source.value}
                       onClick={() => {
@@ -388,7 +386,7 @@ const Tables: React.FC = () => {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1.5 text-sm text-slate-600">
                         <Database size={14} />
-                        {sources.find(s => s.value === (table.sourceId?.toString() || ''))?.label || 'Unknown'}
+                        {sourceOptions.find(s => s.value === (table.sourceId?.toString() || ''))?.label || 'Unknown'}
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-slate-600">

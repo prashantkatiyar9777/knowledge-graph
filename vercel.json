@@ -14,14 +14,18 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server.ts"
+      "dest": "/server.ts"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "/"
+      "dest": "/index.html"
     }
   ],
   "env": {
-    "MONGODB_URI": "@mongodb_uri"
+    "MONGODB_URI": "@mongodb_uri",
+    "NODE_ENV": "production"
   }
 } 
