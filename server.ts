@@ -37,12 +37,14 @@ app.get('/api/health', async (req, res) => {
   try {
     // Check MongoDB connection
     const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    const mongoError = mongoose.connection.readyState !== 1 ? 'MongoDB is not connected' : undefined;
     
     res.json({
-      status: 'ok',
+      status: mongoStatus === 'connected' ? 'ok' : 'error',
       mongodb: mongoStatus,
       environment: process.env.NODE_ENV,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      error: mongoError
     });
   } catch (error) {
     logger.error('Health check failed:', error);
@@ -56,14 +58,18 @@ app.get('/api/health', async (req, res) => {
 
 // Middleware to check MongoDB connection
 const checkMongoDBConnection = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!isConnected) {
-    try {
+  try {
+    if (!isConnected || mongoose.connection.readyState !== 1) {
       await initializeMongoDB();
-    } catch (error) {
-      return res.status(500).json({ error: 'Database connection error. Please try again later.' });
     }
+    next();
+  } catch (error) {
+    logger.error('Database connection error:', error);
+    return res.status(500).json({ 
+      error: 'Database connection error. Please try again later.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
-  next();
 };
 
 // Apply MongoDB connection check middleware to all API routes except health check
@@ -124,19 +130,19 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   });
 });
 
+// Initialize MongoDB connection immediately for both development and production
+initializeMongoDB().catch((error) => {
+  logger.error('Failed to initialize MongoDB:', error);
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+});
+
 // For local development
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
-  });
-}
-
-// Initialize MongoDB connection for production
-if (process.env.NODE_ENV === 'production') {
-  initializeMongoDB().catch((error) => {
-    logger.error('Failed to initialize MongoDB in production:', error);
-    process.exit(1);
   });
 }
 

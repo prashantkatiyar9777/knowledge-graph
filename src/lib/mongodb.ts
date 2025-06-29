@@ -3,8 +3,8 @@ import { logger } from '../utils/logger.js';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const MAX_RETRIES = 5;
-const RETRY_DELAY = 5000; // 5 seconds
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
 
 logger.info('Environment setup:', {
   MONGODB_URI: MONGODB_URI ? 'Set' : 'Not set',
@@ -15,56 +15,48 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env');
 }
 
-interface CachedMongoose {
-  conn: typeof mongoose | null;
-  promise: Promise<typeof mongoose> | null;
-}
+// For serverless environment, we want faster connection timeouts
+const opts: ConnectOptions = {
+  bufferCommands: false,
+  maxPoolSize: NODE_ENV === 'production' ? 10 : 5,
+  minPoolSize: NODE_ENV === 'production' ? 1 : 1,
+  socketTimeoutMS: 10000,
+  connectTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 5000,
+  heartbeatFrequencyMS: 10000,
+  retryWrites: true,
+  ...(NODE_ENV === 'production' ? {
+    autoIndex: false,
+    compressors: ['zlib' as const],
+  } : {})
+};
 
-declare global {
-  // eslint-disable-next-line no-var
-  var mongoose: CachedMongoose | undefined;
-}
-
-const cached: CachedMongoose = global.mongoose || { conn: null, promise: null };
-global.mongoose = cached;
+// Keep track of connection status
+let isConnected = false;
 
 async function connectWithRetry(retryCount = 0): Promise<typeof mongoose> {
-  if (cached.conn) {
-    logger.info('Using existing MongoDB connection');
-    return cached.conn;
-  }
-
   try {
-    const opts: ConnectOptions = {
-      bufferCommands: false,
-      maxPoolSize: NODE_ENV === 'production' ? 50 : 10,
-      minPoolSize: NODE_ENV === 'production' ? 10 : 1,
-      socketTimeoutMS: 30000,
-      connectTimeoutMS: 30000,
-      serverSelectionTimeoutMS: 5000,
-      heartbeatFrequencyMS: 10000,
-      retryWrites: true,
-      ...(NODE_ENV === 'production' ? {
-        autoIndex: false,
-        compressors: ['zlib' as const],
-      } : {})
-    };
-
-    if (!cached.promise && MONGODB_URI) {
-      logger.info('Creating new MongoDB connection');
-      cached.promise = mongoose.connect(MONGODB_URI, opts);
+    if (isConnected) {
+      logger.info('Using existing MongoDB connection');
+      return mongoose;
     }
 
-    if (cached.promise) {
-      cached.conn = await cached.promise;
-      logger.info('MongoDB connected successfully!');
-      return cached.conn;
+    if (mongoose.connection.readyState === 1) {
+      isConnected = true;
+      logger.info('Using existing MongoDB connection');
+      return mongoose;
     }
 
-    throw new Error('MongoDB connection failed: No connection promise available');
+    if (!MONGODB_URI) {
+      throw new Error('MongoDB URI is not defined');
+    }
+
+    logger.info('Creating new MongoDB connection');
+    await mongoose.connect(MONGODB_URI, opts);
+    isConnected = true;
+    logger.info('MongoDB connected successfully!');
+    return mongoose;
   } catch (error) {
-    cached.promise = null;
-    
     if (retryCount < MAX_RETRIES) {
       logger.warn(`MongoDB connection attempt ${retryCount + 1} failed. Retrying in ${RETRY_DELAY}ms...`, { error });
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
@@ -78,17 +70,18 @@ async function connectWithRetry(retryCount = 0): Promise<typeof mongoose> {
 
 // Monitor connection status
 mongoose.connection.on('connected', () => {
+  isConnected = true;
   logger.info('MongoDB connection established');
 });
 
 mongoose.connection.on('error', (err) => {
+  isConnected = false;
   logger.error('MongoDB connection error:', { error: err });
 });
 
 mongoose.connection.on('disconnected', () => {
+  isConnected = false;
   logger.info('MongoDB connection disconnected');
-  cached.conn = null;
-  cached.promise = null;
 });
 
 process.on('SIGINT', async () => {

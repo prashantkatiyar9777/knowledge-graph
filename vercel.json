@@ -3,7 +3,13 @@
   "builds": [
     {
       "src": "server.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["src/**/*"],
+        "nodeVersion": "18.x",
+        "buildCommand": "npm run server:build",
+        "tsconfigPath": "tsconfig.server.json"
+      }
     },
     {
       "src": "package.json",
@@ -25,6 +31,9 @@
     {
       "src": "/(.*)",
       "dest": "/index.html"
-        }
-  ]
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 } 
