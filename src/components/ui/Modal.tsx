@@ -9,7 +9,23 @@ interface ModalProps {
   className?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({
+interface ModalComponent extends React.FC<ModalProps> {
+  Header: React.FC<{
+    children: React.ReactNode;
+    onClose?: () => void;
+    className?: string;
+  }>;
+  Body: React.FC<{
+    children: React.ReactNode;
+    className?: string;
+  }>;
+  Footer: React.FC<{
+    children: React.ReactNode;
+    className?: string;
+  }>;
+}
+
+export const Modal: ModalComponent = ({
   isOpen,
   onClose,
   children,

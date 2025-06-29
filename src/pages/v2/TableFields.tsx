@@ -1,335 +1,129 @@
-import React, { useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { 
-  Eye, Plus, Search, Edit2, RefreshCw, Database, Filter, ChevronDown, ArrowLeft 
-} from 'lucide-react';
-import { Card, Button, Badge, Input } from '../../components/ui';
-import { TableField } from '../../types';
-import { mockFields, mockTableData } from '../../utils/mockData';
-import { cn } from '../../utils/cn';
-import FieldMetadataEditor from '../../components/modals/FieldMetadataEditor';
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import {
+  Plus,
+  Search,
+  Edit2,
+  RefreshCw,
+  Database,
+  Filter,
+  ChevronDown,
+  Eye,
+  Trash2
+} from "lucide-react";
+import { Card, Button, Badge } from "../../components/ui";
+import { cn } from "../../utils/cn";
+import useDataStore from "../../stores/dataStore";
+import FieldMetadataEditor from "../../components/modals/FieldMetadataEditor";
+import { Field, Table } from "../../types";
 
-const TableFields: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const tableId = searchParams.get('table');
-  const sourceName = searchParams.get('source');
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedField, setSelectedField] = useState<(TableField & { tableName: string; isRelationship?: boolean; mappedToTable?: string }) | null>(null);
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const itemsPerPage = 10;
+const TableFields = () => {
+  const { id } = useParams();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showFieldEditor, setShowFieldEditor] = useState(false);
+  const [selectedField, setSelectedField] = useState<Field | null>(null);
 
-  // Get table information
-  const table = mockTableData.find(t => t.id === tableId);
+  const { tables, fetchTables } = useDataStore();
 
-  // Mock fields data
-  const dummyFields = [
-    {
-      id: 'field1',
-      name: 'TAG_ID',
-      type: 'UUID',
-      alternateName: 'tag,identifier',
-      description: 'Unique identifier for the tag',
-      tableName: table?.name || '',
-      tableId,
-      isInKG: true,
-      hasValueMapping: false
-    },
-    {
-      id: 'field2',
-      name: 'TAG_NAME',
-      type: 'STRING',
-      alternateName: 'name,label',
-      description: 'Display name of the tag',
-      tableName: table?.name || '',
-      tableId,
-      isInKG: true,
-      hasValueMapping: false
-    },
-    {
-      id: 'field3',
-      name: 'DESCRIPTION',
-      type: 'TEXT',
-      alternateName: 'desc,details',
-      description: 'Detailed description of the tag',
-      tableName: table?.name || '',
-      tableId,
-      isInKG: true,
-      hasValueMapping: false
-    },
-    {
-      id: 'field4',
-      name: 'DATA_TYPE',
-      type: 'STRING',
-      alternateName: 'type,format',
-      description: 'Data type of the tag value',
-      tableName: table?.name || '',
-      tableId,
-      isInKG: true,
-      hasValueMapping: true
-    },
-    {
-      id: 'field5',
-      name: 'UNIT',
-      type: 'STRING',
-      alternateName: 'uom,measurement_unit',
-      description: 'Unit of measurement',
-      tableName: table?.name || '',
-      tableId,
-      isInKG: true,
-      hasValueMapping: true
-    }
-  ];
+  useEffect(() => {
+    fetchTables();
+  }, [fetchTables]);
 
-  const fieldTypes = [
-    { value: 'all', label: 'All Types' },
-    { value: 'STRING', label: 'String' },
-    { value: 'NUMBER', label: 'Number' },
-    { value: 'INTEGER', label: 'Integer' },
-    { value: 'FLOAT', label: 'Float' },
-    { value: 'BOOLEAN', label: 'Boolean' },
-    { value: 'DATE', label: 'Date' },
-    { value: 'DATETIME', label: 'DateTime' },
-    { value: 'TIMESTAMP', label: 'Timestamp' },
-    { value: 'JSON', label: 'JSON' },
-    { value: 'ARRAY', label: 'Array' },
-    { value: 'UUID', label: 'UUID' },
-    { value: 'TEXT', label: 'Text' }
-  ];
+  const table = tables.find(t => t._id.toString() === id) as Table | undefined;
+  const fields = table?.fields || [];
 
-  // Filter fields based on search and type
-  const filteredFields = dummyFields.filter(field => {
-    const matchesSearch = 
-      field.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      field.alternateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      field.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesType = selectedType === 'all' || field.type === selectedType;
-    
-    return matchesSearch && matchesType;
-  });
-
-  const totalPages = Math.ceil(filteredFields.length / itemsPerPage);
-  const paginatedFields = filteredFields.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  const filteredFields = fields.filter(field =>
+    field.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    field.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    field.type?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleEditField = (field: typeof selectedField) => {
+  const handleEditField = (field: Field) => {
     setSelectedField(field);
+    setShowFieldEditor(true);
   };
 
-  const handleSaveField = (updates: Partial<TableField>) => {
-    console.log('Saving field updates:', updates);
-    setSelectedField(null);
-  };
+  if (!table) {
+    return <div>Table not found</div>;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <Link 
-            to={`/platform-tables?source=${encodeURIComponent(sourceName || '')}`} 
-            className="inline-flex items-center text-slate-600 hover:text-slate-900 mb-2"
-          >
-            <ArrowLeft size={20} className="mr-1" />
-            Back to {sourceName}
-          </Link>
-          <h1 className="text-2xl font-semibold text-slate-900">{table?.name} Fields</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Manage field metadata and knowledge graph mappings
+          <h1 className="text-2xl font-semibold">{table.name} Fields</h1>
+          <p className="text-sm text-gray-500">
+            Manage fields and their metadata for {table.name}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="secondary" 
-            icon={<Eye size={16} />}
-            disabled={!filteredFields.some(f => f.isInKG)}
-          >
-            Preview Graph
-          </Button>
-          <Button 
-            variant="primary" 
-            icon={<RefreshCw size={16} />}
-            disabled={!filteredFields.some(f => f.isInKG)}
-          >
-            Update Knowledge Graph
+        <div className="flex gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search fields..."
+              className="pl-10 pr-4 py-2 border rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Button onClick={() => setShowFieldEditor(true)}>
+            <Plus size={20} className="mr-2" />
+            Add Field
           </Button>
         </div>
       </div>
 
-      {/* Search and filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 text-sm border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-            placeholder="Search fields by name, description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        {/* Type Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowTypeDropdown(!showTypeDropdown)}
-            className="inline-flex items-center justify-between w-48 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <span>{fieldTypes.find(t => t.value === selectedType)?.label}</span>
-            <ChevronDown size={16} className="ml-2 text-slate-400" />
-          </button>
-          
-          {showTypeDropdown && (
-            <div className="absolute z-10 w-48 mt-1 bg-white rounded-lg shadow-lg border border-slate-200">
-              <div className="py-1 max-h-64 overflow-y-auto">
-                {fieldTypes.map((type) => (
-                  <button
-                    key={type.value}
-                    onClick={() => {
-                      setSelectedType(type.value);
-                      setShowTypeDropdown(false);
-                    }}
-                    className={cn(
-                      "block w-full px-4 py-2 text-sm text-left hover:bg-slate-50",
-                      selectedType === type.value ? "text-primary font-medium" : "text-slate-700"
-                    )}
-                  >
-                    {type.label}
-                  </button>
-                ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredFields.map((field) => (
+          <Card key={field._id.toString()} className="p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-1">{field.name}</h3>
+                <p className="text-sm text-gray-500 mb-2">
+                  {field.description || "No description"}
+                </p>
+                <Badge variant={field.isRequired ? "success" : "warning"}>
+                  {field.type}
+                </Badge>
               </div>
+              <Badge variant={field.kgStatus === "Added to KG" ? "success" : "warning"}>
+                {field.kgStatus}
+              </Badge>
             </div>
-          )}
-        </div>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit2 size={16} className="mr-2" />
+                Edit Field
+              </Button>
+              <Button variant="outline" className="w-full justify-start">
+                <Database size={16} className="mr-2" />
+                Map to Knowledge Graph
+              </Button>
+              <Button variant="outline" className="w-full justify-start">
+                <Trash2 size={16} className="mr-2" />
+                Delete Field
+              </Button>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* Fields List */}
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Field Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Alternative Names
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  KG Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-200">
-              {paginatedFields.map((field) => (
-                <tr key={`${field.tableId}-${field.id}`} className="hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-slate-900">
-                      {field.name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="default">
-                      {field.type}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {field.alternateName.split(',').map((name, index) => (
-                        <Badge key={index} variant="default">
-                          {name.trim()}
-                        </Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600 max-w-md truncate">
-                    {field.description}
-                  </td>
-                  <td className="px-6 py-4">
-                    {field.isInKG ? (
-                      <Badge variant="success">In Knowledge Graph</Badge>
-                    ) : (
-                      <Badge variant="default">Not Mapped</Badge>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<Edit2 size={16} />}
-                      title="Edit Field Metadata"
-                      onClick={() => handleEditField(field)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <Card.Footer className="flex items-center justify-between">
-            <div className="text-sm text-slate-700">
-              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-              <span className="font-medium">
-                {Math.min(currentPage * itemsPerPage, filteredFields.length)}
-              </span>{' '}
-              of <span className="font-medium">{filteredFields.length}</span> fields
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-              >
-                Previous
-              </Button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <Button
-                  key={page}
-                  variant={page === currentPage ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setCurrentPage(page)}
-                >
-                  {page}
-                </Button>
-              ))}
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </Card.Footer>
-        )}
-      </Card>
-
-      {/* Field Metadata Editor Modal */}
-      <FieldMetadataEditor
-        isOpen={!!selectedField}
-        onClose={() => setSelectedField(null)}
-        field={selectedField}
-        onSave={handleSaveField}
-      />
+      {showFieldEditor && (
+        <FieldMetadataEditor
+          isOpen={showFieldEditor}
+          onClose={() => {
+            setShowFieldEditor(false);
+            setSelectedField(null);
+          }}
+          field={selectedField}
+          tableId={table._id.toString()}
+        />
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Button } from '../ui';
 import { Search, ChevronRight, X, Plus } from 'lucide-react';
-import { mockRelationships } from '../../utils/mockData';
+import useDataStore from '../../stores/dataStore';
 
 interface InverseRelationshipEditorProps {
   isOpen: boolean;
@@ -20,18 +20,25 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
   onClose,
   onSave
 }) => {
+  const { relationships, fetchRelationships, isLoading } = useDataStore();
   const [step, setStep] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRelationships, setSelectedRelationships] = useState<string[]>([]);
   const [inverseConfigs, setInverseConfigs] = useState<Record<string, InverseConfig>>({});
   const [newAlternateName, setNewAlternateName] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchRelationships();
+    }
+  }, [isOpen, fetchRelationships]);
+
   // Filter relationships based on search term
-  const filteredRelationships = mockRelationships.filter(rel =>
-    rel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rel.fromTable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rel.toTable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rel.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRelationships = relationships.filter(rel =>
+    (rel.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (rel.sourceTable?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (rel.targetTable?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (rel.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleAddAlternateName = (relationshipId: string) => {
@@ -64,7 +71,7 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
 
   const handleSave = () => {
     const inverseRelationships = selectedRelationships.map(id => {
-      const relationship = mockRelationships.find(r => r.id === id);
+      const relationship = relationships.find(r => r._id.toString() === id);
       const config = inverseConfigs[id] || { inverseName: '', alternateNames: [], description: '' };
       
       return {
@@ -97,15 +104,16 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
   };
 
   const handleSelectAll = (checked: boolean) => {
-    const newSelected = checked ? filteredRelationships.map(r => r.id) : [];
+    const newSelected = checked ? filteredRelationships.map(r => r._id.toString()) : [];
     setSelectedRelationships(newSelected);
 
     // Initialize inverse configs for all newly selected relationships
     if (checked) {
       const newConfigs = { ...inverseConfigs };
       filteredRelationships.forEach(rel => {
-        if (!newConfigs[rel.id]) {
-          newConfigs[rel.id] = {
+        const id = rel._id.toString();
+        if (!newConfigs[id]) {
+          newConfigs[id] = {
             inverseName: '',
             alternateNames: [],
             description: ''
@@ -115,6 +123,18 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
       setInverseConfigs(newConfigs);
     }
   };
+
+  if (isLoading) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <Modal.Body>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </Modal.Body>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
@@ -160,28 +180,28 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
               <div className="divide-y divide-slate-200 max-h-[400px] overflow-y-auto">
                 {filteredRelationships.map((rel) => (
                   <div
-                    key={rel.id}
+                    key={rel._id.toString()}
                     className={`flex items-center px-4 py-3 hover:bg-slate-50 ${
-                      selectedRelationships.includes(rel.id) ? 'bg-blue-50' : ''
+                      selectedRelationships.includes(rel._id.toString()) ? 'bg-blue-50' : ''
                     }`}
                   >
                     <input
                       type="checkbox"
                       className="rounded border-slate-300 text-primary focus:ring-primary"
-                      checked={selectedRelationships.includes(rel.id)}
-                      onChange={() => toggleRelationship(rel.id)}
+                      checked={selectedRelationships.includes(rel._id.toString())}
+                      onChange={() => toggleRelationship(rel._id.toString())}
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex items-center justify-between">
                         <div className="text-sm font-medium text-slate-900">
-                          {rel.name}
+                          {rel.name || 'Unnamed Relationship'}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {rel.fromTable} → {rel.toTable}
+                          {rel.sourceTable?.name || 'Unknown'} → {rel.targetTable?.name || 'Unknown'}
                         </div>
                       </div>
                       <p className="text-xs text-slate-600 mt-1">
-                        {rel.description}
+                        {rel.description || 'No description'}
                       </p>
                     </div>
                   </div>
@@ -192,15 +212,15 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
         ) : (
           <div className="space-y-8">
             {selectedRelationships.map(relationshipId => {
-              const relationship = mockRelationships.find(r => r.id === relationshipId);
+              const relationship = relationships.find(r => r._id.toString() === relationshipId);
               if (!relationship) return null;
 
               return (
                 <div key={relationshipId} className="space-y-4">
                   <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-medium text-slate-900">{relationship.name}</h4>
+                    <h4 className="text-sm font-medium text-slate-900">{relationship.name || 'Unnamed Relationship'}</h4>
                     <p className="text-xs text-slate-600 mt-1">
-                      {relationship.fromTable}.{relationship.fromField} → {relationship.toTable}.{relationship.toField}
+                      {relationship.sourceTable?.name || 'Unknown'}.{relationship.sourceField?.name || 'Unknown'} → {relationship.targetTable?.name || 'Unknown'}.{relationship.targetField?.name || 'Unknown'}
                     </p>
                   </div>
 
@@ -248,36 +268,25 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
                         <Button
                           variant="primary"
                           onClick={() => handleAddAlternateName(relationshipId)}
-                          disabled={!newAlternateName[relationshipId]?.trim()}
-                          icon={<Plus size={16} />}
                         >
-                          Add
+                          <Plus size={16} />
                         </Button>
                       </div>
-                      <div className="min-h-[2.5rem] p-3 bg-slate-50 rounded-lg border border-slate-200">
-                        {inverseConfigs[relationshipId]?.alternateNames?.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {inverseConfigs[relationshipId].alternateNames.map((name, index) => (
-                              <div
-                                key={index}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white rounded-md border border-slate-200 shadow-sm"
-                              >
-                                <span className="text-sm text-slate-700">{name}</span>
-                                <button
-                                  onClick={() => handleRemoveAlternateName(relationshipId, index)}
-                                  className="text-slate-400 hover:text-red-500 transition-colors"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-slate-500 italic">
-                            No alternative names added
-                          </div>
-                        )}
-                      </div>
+
+                      {inverseConfigs[relationshipId]?.alternateNames.map((name, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg"
+                        >
+                          <span className="text-sm text-slate-700">{name}</span>
+                          <button
+                            onClick={() => handleRemoveAlternateName(relationshipId, index)}
+                            className="text-slate-400 hover:text-slate-600"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
 
                     <div className="space-y-2">
@@ -293,9 +302,9 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
                             description: e.target.value
                           }
                         }))}
+                        placeholder="Describe the inverse relationship..."
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                         rows={3}
-                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
-                        placeholder="Describe the purpose of this inverse relationship..."
                       />
                     </div>
                   </div>
@@ -307,35 +316,35 @@ const InverseRelationshipEditor: React.FC<InverseRelationshipEditorProps> = ({
       </Modal.Body>
 
       <Modal.Footer>
-        <div className="flex justify-between">
-          {step === 2 ? (
-            <>
-              <Button variant="secondary" onClick={() => setStep(1)}>
-                Back
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSave}
-                disabled={selectedRelationships.length === 0 || 
-                  selectedRelationships.some(id => !inverseConfigs[id]?.inverseName?.trim())}
-              >
-                Add Inverse Relationships
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="secondary" onClick={onClose}>
-                Cancel
-              </Button>
+        <div className="flex justify-between w-full">
+          {step === 2 && (
+            <Button variant="secondary" onClick={() => setStep(1)}>
+              Back
+            </Button>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            {step === 1 ? (
               <Button
                 variant="primary"
                 onClick={() => setStep(2)}
                 disabled={selectedRelationships.length === 0}
               >
                 Next
+                <ChevronRight size={16} className="ml-1" />
               </Button>
-            </>
-          )}
+            ) : (
+              <Button
+                variant="primary"
+                onClick={handleSave}
+                disabled={selectedRelationships.some(id => !inverseConfigs[id]?.inverseName)}
+              >
+                Save
+              </Button>
+            )}
+          </div>
         </div>
       </Modal.Footer>
     </Modal>

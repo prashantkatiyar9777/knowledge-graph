@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Modal, Button } from '../ui';
 import { Search, ChevronRight, ArrowRight, X, Plus } from 'lucide-react';
-import { mockRelationships } from '../../utils/mockData';
+import useDataStore from '../../stores/dataStore';
+import { Relationship } from '../../types';
 
 interface IndirectRelationshipEditorProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface IndirectRelationshipEditorProps {
 
 interface RelationshipPath {
   path: string[];
-  relationships: typeof mockRelationships;
+  relationships: Relationship[];
 }
 
 const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
@@ -19,6 +20,7 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
   onClose,
   onSave
 }) => {
+  const { relationships, fetchRelationships, isLoading } = useDataStore();
   const [step, setStep] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPaths, setSelectedPaths] = useState<RelationshipPath[]>([]);
@@ -29,6 +31,12 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
     newAlternateName: string;
   }>>({});
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchRelationships();
+    }
+  }, [isOpen, fetchRelationships]);
+
   // Find all possible indirect relationship paths
   const indirectPaths = useMemo(() => {
     const paths: RelationshipPath[] = [];
@@ -36,7 +44,7 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
     const findPaths = (
       startTable: string,
       currentPath: string[],
-      usedRelationships: typeof mockRelationships,
+      usedRelationships: Relationship[],
       visited: Set<string>
     ) => {
       if (currentPath.length > 1 && currentPath.length <= 4) {
@@ -48,29 +56,33 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
 
       if (currentPath.length >= 4) return;
 
-      const availableRelationships = mockRelationships.filter(rel => 
-        rel.fromTable === startTable && !visited.has(rel.toTable)
+      const availableRelationships = relationships.filter(rel => 
+        rel.sourceTable?.name === startTable && !visited.has(rel.targetTable?.name || '')
       );
 
       for (const rel of availableRelationships) {
-        visited.add(rel.toTable);
+        if (!rel.targetTable?.name) continue;
+        visited.add(rel.targetTable.name);
         findPaths(
-          rel.toTable,
-          [...currentPath, rel.toTable],
+          rel.targetTable.name,
+          [...currentPath, rel.targetTable.name],
           [...usedRelationships, rel],
           new Set(visited)
         );
-        visited.delete(rel.toTable);
+        visited.delete(rel.targetTable.name);
       }
     };
 
-    const tables = new Set(mockRelationships.map(rel => rel.fromTable));
+    const tables = new Set(relationships
+      .filter(rel => rel.sourceTable?.name)
+      .map(rel => rel.sourceTable.name)
+    );
     tables.forEach(table => {
       findPaths(table, [table], [], new Set([table]));
     });
 
     return paths;
-  }, []);
+  }, [relationships]);
 
   // Filter paths based on search term
   const filteredPaths = indirectPaths.filter(path =>
@@ -167,6 +179,18 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
     onSave(relationships);
   };
 
+  if (isLoading) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <Modal.Body>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </Modal.Body>
+      </Modal>
+    );
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <Modal.Header>
@@ -249,12 +273,11 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
           </>
         ) : (
           <div className="space-y-8">
-            {selectedPaths.map((path, pathIndex) => {
+            {selectedPaths.map((path, index) => {
               const pathKey = path.path.join('-');
-              const config = relationshipConfigs[pathKey];
-
+              
               return (
-                <div key={pathIndex} className="space-y-4">
+                <div key={index} className="space-y-4">
                   <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                     <div className="flex items-center gap-2">
                       {path.path.map((table, i) => (
@@ -277,7 +300,7 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
                       </label>
                       <input
                         type="text"
-                        value={config?.name || ''}
+                        value={relationshipConfigs[pathKey]?.name || ''}
                         onChange={(e) => setRelationshipConfigs(prev => ({
                           ...prev,
                           [pathKey]: {
@@ -285,7 +308,7 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
                             name: e.target.value
                           }
                         }))}
-                        placeholder="e.g., INDIRECTLY_CONNECTED_TO"
+                        placeholder="e.g., INDIRECTLY_RELATED_TO"
                         className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                       />
                     </div>
@@ -297,7 +320,7 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          value={config?.newAlternateName || ''}
+                          value={relationshipConfigs[pathKey]?.newAlternateName || ''}
                           onChange={(e) => setRelationshipConfigs(prev => ({
                             ...prev,
                             [pathKey]: {
@@ -317,36 +340,25 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
                         <Button
                           variant="primary"
                           onClick={() => handleAddAlternateName(pathKey)}
-                          disabled={!config?.newAlternateName?.trim()}
-                          icon={<Plus size={16} />}
                         >
-                          Add
+                          <Plus size={16} />
                         </Button>
                       </div>
-                      <div className="min-h-[2.5rem] p-3 bg-slate-50 rounded-lg border border-slate-200">
-                        {config?.alternateNames?.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {config.alternateNames.map((name, index) => (
-                              <div
-                                key={index}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white rounded-md border border-slate-200 shadow-sm"
-                              >
-                                <span className="text-sm text-slate-700">{name}</span>
-                                <button
-                                  onClick={() => handleRemoveAlternateName(pathKey, index)}
-                                  className="text-slate-400 hover:text-red-500 transition-colors"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-slate-500 italic">
-                            No alternative names added
-                          </div>
-                        )}
-                      </div>
+
+                      {relationshipConfigs[pathKey]?.alternateNames.map((name, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg"
+                        >
+                          <span className="text-sm text-slate-700">{name}</span>
+                          <button
+                            onClick={() => handleRemoveAlternateName(pathKey, i)}
+                            className="text-slate-400 hover:text-slate-600"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
 
                     <div className="space-y-2">
@@ -354,7 +366,7 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
                         Description
                       </label>
                       <textarea
-                        value={config?.description || ''}
+                        value={relationshipConfigs[pathKey]?.description || ''}
                         onChange={(e) => setRelationshipConfigs(prev => ({
                           ...prev,
                           [pathKey]: {
@@ -362,9 +374,9 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
                             description: e.target.value
                           }
                         }))}
+                        placeholder="Describe the indirect relationship..."
+                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                         rows={3}
-                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
-                        placeholder="Describe the purpose of this indirect relationship..."
                       />
                     </div>
                   </div>
@@ -376,38 +388,35 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
       </Modal.Body>
 
       <Modal.Footer>
-        <div className="flex justify-between">
-          {step === 2 ? (
-            <>
-              <Button variant="secondary" onClick={() => setStep(1)}>
-                Back
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSave}
-                disabled={selectedPaths.length === 0 || 
-                  selectedPaths.some(path => {
-                    const config = relationshipConfigs[path.path.join('-')];
-                    return !config?.name?.trim();
-                  })}
-              >
-                Add Indirect Relationships
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="secondary" onClick={onClose}>
-                Cancel
-              </Button>
+        <div className="flex justify-between w-full">
+          {step === 2 && (
+            <Button variant="secondary" onClick={() => setStep(1)}>
+              Back
+            </Button>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            {step === 1 ? (
               <Button
                 variant="primary"
                 onClick={() => setStep(2)}
                 disabled={selectedPaths.length === 0}
               >
-                Next ({selectedPaths.length} selected)
+                Next
+                <ChevronRight size={16} className="ml-1" />
               </Button>
-            </>
-          )}
+            ) : (
+              <Button
+                variant="primary"
+                onClick={handleSave}
+                disabled={selectedPaths.some(path => !relationshipConfigs[path.path.join('-')]?.name)}
+              >
+                Save
+              </Button>
+            )}
+          </div>
         </div>
       </Modal.Footer>
     </Modal>

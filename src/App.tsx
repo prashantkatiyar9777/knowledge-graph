@@ -5,17 +5,32 @@ import { AppProvider } from './contexts/AppContext';
 import TableMetadataEditor from './components/modals/TableMetadataEditor';
 import RelationshipEditor from './components/modals/RelationshipEditor';
 import SyncJobEditor from './components/modals/SyncJobEditor';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 function App() {
   return (
-    <AppProvider>
-      <Router>
-        <AppLayout />
-        <TableMetadataEditor />
-        <RelationshipEditor />
-        <SyncJobEditor />
-      </Router>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <Router>
+          <AppLayout />
+          <TableMetadataEditor 
+            isOpen={false} 
+            onClose={() => {}} 
+            table={null} 
+            onSave={() => {}} 
+          />
+          <RelationshipEditor 
+            isOpen={false} 
+            onClose={() => {}} 
+            mode="add" 
+          />
+          <SyncJobEditor 
+            isOpen={false} 
+            onClose={() => {}} 
+          />
+        </Router>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -1,133 +1,306 @@
 import { create } from 'zustand';
-import { mockTableData, mockFields } from '../utils/mockData';
+import { MongoDBService } from '../services/mongodb.service';
+import { Table, Source, AuditLog, SyncJob, Relationship, ValueField } from '../types';
 
-interface Table {
-  id: string;
-  name: string;
-}
-
-interface RelationshipField {
-  id: string;
-  table_id: string;
-  name: string;
-}
-
-interface SelfRelationship {
-  id: string;
-  table_id: string;
-  field_id: string;
-  name: string;
-  alternative_names: string[];
-  description: string | null;
-  kg_status: 'Added to KG' | 'Partially Added' | 'Not Added' | 'Error';
-  created_at: string;
-  updated_at: string;
-}
-
-interface DataState {
-  selfRelationships: SelfRelationship[];
+interface DataStore {
+  sources: Source[];
   tables: Table[];
-  relationshipFields: RelationshipField[];
-  fetchTables: () => Promise<void>;
-  fetchRelationshipFields: () => Promise<void>;
+  fields: ValueField[];
+  auditLogs: AuditLog[];
+  syncJobs: SyncJob[];
+  selectedSource: string | null;
+  isLoading: boolean;
+  error: string | null;
+  fetchSources: () => Promise<void>;
+  fetchTables: (sourceId?: string) => Promise<void>;
+  fetchFields: () => Promise<void>;
+  fetchFieldsByTable: (tableId: string) => Promise<void>;
+  fetchAuditLogs: () => Promise<void>;
+  fetchSyncJobs: () => Promise<void>;
+  setSelectedSource: (sourceId: string | null) => void;
+  relationships: Relationship[];
+  inverseRelationships: Relationship[];
+  indirectRelationships: Relationship[];
+  selfRelationships: Relationship[];
+  users: any[];
+  fetchRelationships: () => Promise<void>;
+  fetchInverseRelationships: () => Promise<void>;
+  fetchIndirectRelationships: () => Promise<void>;
   fetchSelfRelationships: () => Promise<void>;
-  createSelfRelationship: (relationship: Omit<SelfRelationship, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  createBulkSelfRelationships: (relationships: Omit<SelfRelationship, 'id' | 'created_at' | 'updated_at'>[]) => Promise<void>;
-  updateSelfRelationship: (id: string, updates: Partial<SelfRelationship>) => Promise<void>;
-  deleteSelfRelationship: (id: string) => Promise<void>;
+  fetchUsers: () => Promise<void>;
+  createTable: (table: any) => Promise<void>;
+  updateTable: (id: string, table: any) => Promise<void>;
+  deleteTable: (id: string) => Promise<void>;
+  createField: (field: Partial<ValueField>) => Promise<void>;
+  updateField: (id: string, field: Partial<ValueField>) => Promise<void>;
+  deleteField: (id: string) => Promise<void>;
+  createRelationship: (relationship: any) => Promise<void>;
+  updateRelationship: (id: string, relationship: any) => Promise<void>;
+  deleteRelationship: (id: string) => Promise<void>;
+  createSelfRelationship: (relationship: any) => Promise<void>;
+  createBulkSelfRelationships: (relationships: any[]) => Promise<void>;
 }
 
-// Mock data
-const mockSelfRelationships: SelfRelationship[] = [
-  {
-    id: '1',
-    table_id: 'sap-equi',
-    field_id: 'hequi',
-    name: 'SAME_LOCATION',
-    alternative_names: ['Located Together', 'Co-located'],
-    description: 'Equipment located at the same functional location',
-    kg_status: 'Added to KG',
-    created_at: '2025-02-15T10:00:00Z',
-    updated_at: '2025-02-15T10:00:00Z'
-  }
-];
-
-const mockTables: Table[] = [
-  { id: 'sap-equi', name: 'SAP Equipment' },
-  { id: 'sap-func-loc', name: 'SAP Functional Location' }
-];
-
-const mockRelFields: RelationshipField[] = [
-  { id: 'hequi', table_id: 'sap-equi', name: 'Higher Equipment' },
-  { id: 'location', table_id: 'sap-equi', name: 'Location' }
-];
-
-export const useDataStore = create<DataState>((set, get) => ({
-  selfRelationships: mockSelfRelationships,
+const useDataStore = create<DataStore>((set, get) => ({
+  sources: [],
   tables: [],
-  relationshipFields: [],
+  fields: [],
+  auditLogs: [],
+  syncJobs: [],
+  selectedSource: null,
+  isLoading: false,
+  error: null,
+  relationships: [],
+  inverseRelationships: [],
+  indirectRelationships: [],
+  selfRelationships: [],
+  users: [],
 
-  fetchTables: async () => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    set({ tables: mockTables });
+  fetchSources: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const sources = await MongoDBService.getSources();
+      set({ sources, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
   },
 
-  fetchRelationshipFields: async () => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    set({ relationshipFields: mockRelFields });
+  fetchTables: async (sourceId?: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      const tables = await MongoDBService.getTables();
+      set({ tables, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchFields: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const fields = await MongoDBService.getFields();
+      set({ fields, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchFieldsByTable: async (tableId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      const fields = await MongoDBService.getFieldsByTable(tableId);
+      set({ fields, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchAuditLogs: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const auditLogs = await MongoDBService.getAuditLogs();
+      set({ auditLogs, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchSyncJobs: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const syncJobs = await MongoDBService.getSyncJobs();
+      set({ syncJobs, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  setSelectedSource: (sourceId: string | null) => {
+    set({ selectedSource: sourceId });
+  },
+
+  fetchRelationships: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const relationships = await MongoDBService.getRelationships();
+      set({ relationships, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchInverseRelationships: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const inverseRelationships = await MongoDBService.getInverseRelationships();
+      set({ inverseRelationships, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchIndirectRelationships: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const indirectRelationships = await MongoDBService.getIndirectRelationships();
+      set({ indirectRelationships, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
   },
 
   fetchSelfRelationships: async () => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    set({ selfRelationships: mockSelfRelationships });
+    try {
+      set({ isLoading: true, error: null });
+      const selfRelationships = await MongoDBService.getSelfRelationships();
+      set({ selfRelationships, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchUsers: async () => {
+    // Placeholder for user fetching
+    set({ users: [] });
+  },
+
+  createTable: async (table) => {
+    try {
+      set({ isLoading: true, error: null });
+      const newTable = await MongoDBService.createTable(table);
+      set(state => ({
+        tables: [...state.tables, newTable],
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  updateTable: async (id, table) => {
+    try {
+      set({ isLoading: true, error: null });
+      // Implement table update logic
+      set({ isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  deleteTable: async (id) => {
+    try {
+      set({ isLoading: true, error: null });
+      // Implement table delete logic
+      set({ isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  createField: async (field) => {
+    try {
+      set({ isLoading: true, error: null });
+      const newField = await MongoDBService.createField(field);
+      set(state => ({
+        fields: [...state.fields, newField],
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  updateField: async (id, field) => {
+    try {
+      set({ isLoading: true, error: null });
+      const updatedField = await MongoDBService.updateField(id, field);
+      set(state => ({
+        fields: state.fields.map(f => f._id.toString() === id ? updatedField : f),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  deleteField: async (id) => {
+    try {
+      set({ isLoading: true, error: null });
+      await MongoDBService.deleteField(id);
+      set(state => ({
+        fields: state.fields.filter(f => f._id.toString() !== id),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  createRelationship: async (relationship) => {
+    try {
+      set({ isLoading: true, error: null });
+      const newRelationship = await MongoDBService.createRelationship(relationship);
+      set(state => ({
+        relationships: [...state.relationships, newRelationship],
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  updateRelationship: async (id, relationship) => {
+    try {
+      set({ isLoading: true, error: null });
+      const updatedRelationship = await MongoDBService.updateRelationship(id, relationship);
+      set(state => ({
+        relationships: state.relationships.map(r => r._id.toString() === id ? updatedRelationship : r),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  deleteRelationship: async (id) => {
+    try {
+      set({ isLoading: true, error: null });
+      await MongoDBService.deleteRelationship(id);
+      set(state => ({
+        relationships: state.relationships.filter(r => r._id.toString() !== id),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
   },
 
   createSelfRelationship: async (relationship) => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const newRelationship = {
-      ...relationship,
-      id: Math.random().toString(36).substr(2, 9),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    set(state => ({
-      selfRelationships: [...state.selfRelationships, newRelationship]
-    }));
+    try {
+      set({ isLoading: true, error: null });
+      const newRelationship = await MongoDBService.createSelfRelationship(relationship);
+      set(state => ({
+        selfRelationships: [...state.selfRelationships, newRelationship],
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
   },
 
   createBulkSelfRelationships: async (relationships) => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const newRelationships = relationships.map(rel => ({
-      ...rel,
-      id: Math.random().toString(36).substr(2, 9),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }));
-    set(state => ({
-      selfRelationships: [...state.selfRelationships, ...newRelationships]
-    }));
-  },
-
-  updateSelfRelationship: async (id, updates) => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    set(state => ({
-      selfRelationships: state.selfRelationships.map(rel =>
-        rel.id === id ? { ...rel, ...updates, updated_at: new Date().toISOString() } : rel
-      )
-    }));
-  },
-
-  deleteSelfRelationship: async (id) => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    set(state => ({
-      selfRelationships: state.selfRelationships.filter(rel => rel.id !== id)
-    }));
+    try {
+      set({ isLoading: true, error: null });
+      const newRelationships = await MongoDBService.createBulkSelfRelationships(relationships);
+      set(state => ({
+        selfRelationships: [...state.selfRelationships, ...newRelationships],
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
   }
 }));
+
+export default useDataStore;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from '../ui';
 import { X, Plus } from 'lucide-react';
-import { useDataStore } from '../../stores/dataStore';
+import useDataStore from '../../stores/dataStore';
 
 interface SelfRelationshipEditorProps {
   isOpen: boolean;
@@ -42,11 +42,12 @@ const SelfRelationshipEditor: React.FC<SelfRelationshipEditorProps> = ({
 
   const handleSave = () => {
     onSave({
-      table_id: selectedTable,
-      reference_table_id: selectedReferenceTable,
+      primaryTable: selectedTable,
+      referenceTable: selectedReferenceTable,
       name,
-      alternative_names: alternateNames,
-      description
+      alternativeNames: alternateNames,
+      description,
+      type: 'self'
     });
   };
 
@@ -69,7 +70,7 @@ const SelfRelationshipEditor: React.FC<SelfRelationshipEditorProps> = ({
             >
               <option value="">Select a table...</option>
               {(dataStore.tables ?? []).map(table => (
-                <option key={table.id} value={table.id}>
+                <option key={table._id.toString()} value={table._id.toString()}>
                   {table.name}
                 </option>
               ))}
@@ -87,9 +88,9 @@ const SelfRelationshipEditor: React.FC<SelfRelationshipEditorProps> = ({
             >
               <option value="">Select a reference table...</option>
               {(dataStore.tables ?? [])
-                .filter(table => table.id !== selectedTable)
+                .filter(table => table._id.toString() !== selectedTable)
                 .map(table => (
-                  <option key={table.id} value={table.id}>
+                  <option key={table._id.toString()} value={table._id.toString()}>
                     {table.name}
                   </option>
                 ))}

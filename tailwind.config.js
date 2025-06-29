@@ -47,6 +47,6 @@ export default {
     },
   },
   plugins: [
-    require('tailwindcss-scrollbar'),
+    require('tailwind-scrollbar')({ nocompatible: true }),
   ],
 };

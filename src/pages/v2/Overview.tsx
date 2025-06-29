@@ -22,7 +22,7 @@ import {
   Users, Settings, Activity, Edit2, ClipboardList
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import Onboarding from '../Onboarding';
+import Onboarding from "../v1/Onboarding";
 import TableMetadataEditor from '../../components/modals/TableMetadataEditor';
 
 const Overview: React.FC = () => {

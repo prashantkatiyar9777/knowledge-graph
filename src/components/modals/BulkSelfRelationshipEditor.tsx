@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Select } from '../ui';
-import { useDataStore } from '../../stores/dataStore';
+import useDataStore from '../../stores/dataStore';
 
 interface BulkSelfRelationshipEditorProps {
   isOpen: boolean;

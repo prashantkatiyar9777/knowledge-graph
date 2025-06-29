@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Modal, Input, Button } from '../ui';
 import { X, Plus } from 'lucide-react';
+import { Relationship } from '../../types';
 
 interface RelationshipMetadataEditorProps {
   isOpen: boolean;
   onClose: () => void;
-  relationship: any;
-  onSave: (updates: any) => void;
+  relationship: Relationship;
+  onSave: (updates: Partial<Relationship>) => void;
 }
 
 const RelationshipMetadataEditor: React.FC<RelationshipMetadataEditorProps> = ({
@@ -16,7 +17,7 @@ const RelationshipMetadataEditor: React.FC<RelationshipMetadataEditorProps> = ({
   onSave
 }) => {
   const [alternateNames, setAlternateNames] = useState<string[]>(
-    relationship ? [relationship.name] : []
+    relationship?.alternativeNames || []
   );
   const [newAlternateName, setNewAlternateName] = useState('');
   const [description, setDescription] = useState(relationship?.description || '');
@@ -26,8 +27,7 @@ const RelationshipMetadataEditor: React.FC<RelationshipMetadataEditorProps> = ({
     
     onSave({
       ...relationship,
-      name: alternateNames[0] || relationship.name,
-      alternateNames: alternateNames.slice(1),
+      alternativeNames: alternateNames,
       description,
     });
   };
@@ -47,9 +47,9 @@ const RelationshipMetadataEditor: React.FC<RelationshipMetadataEditorProps> = ({
             <div>
               <h3 className="text-lg font-medium text-slate-900">{relationship.name}</h3>
               <div className="flex items-center gap-2 mt-1 text-sm text-slate-600">
-                <span>From: {relationship.fromTable}.{relationship.fromField}</span>
+                <span>From: {relationship.sourceTable.name}.{relationship.sourceField.name}</span>
                 <span>•</span>
-                <span>To: {relationship.toTable}.{relationship.toField}</span>
+                <span>To: {relationship.targetTable.name}.{relationship.targetField.name}</span>
               </div>
             </div>
           </div>

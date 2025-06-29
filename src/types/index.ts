@@ -1,68 +1,112 @@
+import { ObjectId } from 'mongodb';
+
 // Common interfaces used across the application
 export interface User {
-  id: string;
+  _id: ObjectId;
   name: string;
   email: string;
   role: 'admin' | 'editor' | 'viewer';
-  avatar: string;
+  status: 'active' | 'inactive';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface TableData {
-  id: string;
+export interface Source {
+  _id: ObjectId;
   name: string;
-  alternateNames: string[];
   description?: string;
-  source: string;
-  fields: number;
-  records: number;
-  kgStatus: 'mapped' | 'partially_mapped' | 'pending' | 'error';
-  lastSync: string;
-  kgRecords?: number;
-  hasMetadata: boolean;
+  type: string;
+  connectionDetails: {
+    host: string;
+    port: number;
+    database: string;
+    username: string;
+    password: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface TableField {
-  id: string;
+export interface Table {
+  _id: ObjectId;
   name: string;
-  alternateName: string;
+  alternativeNames?: string[];
+  sourceId: ObjectId;
+  description?: string;
+  fields: Field[];
+  fieldsCount: number;
+  recordsCount: number;
+  kgRecordsCount: number;
+  kgStatus: 'Added to KG' | 'Partially Added' | 'Not Added' | 'Error';
+  hasMetadata: boolean;
+  lastSync: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Field {
+  _id: ObjectId;
+  name: string;
+  alternativeNames?: string[];
+  description?: string;
   type: string;
-  description: string;
-  hasValueMapping: boolean;
-  valueMapping?: Array<{
-    code: string;
-    value: string;
-  }>;
+  isRequired: boolean;
+  kgStatus: 'Added to KG' | 'Not Added';
+  tableId?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Relationship {
-  id: string;
+  _id: ObjectId;
   name: string;
-  fromTable: string;
-  fromField: string;
-  toTable: string;
-  toField: string;
-  cardinality: string;
-  description: string;
+  alternativeNames?: string[];
+  description?: string;
+  type: 'direct' | 'inverse' | 'indirect' | 'self';
+  sourceTable: {
+    _id: ObjectId;
+    name: string;
+  };
+  targetTable: {
+    _id: ObjectId;
+    name: string;
+  };
+  sourceField: {
+    _id: ObjectId;
+    name: string;
+  };
+  targetField: {
+    _id: ObjectId;
+    name: string;
+  };
+  tablePath?: string[];
+  primaryTable?: string;
+  referenceTable?: string;
+  inKnowledgeGraph?: boolean;
+  kgStatus: 'Added to KG' | 'Not Added';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface SyncJob {
-  id: string;
+  _id: ObjectId;
   name: string;
-  type: string;
+  type: 'full' | 'incremental';
   schedule: string;
-  lastRun: string;
-  nextRun: string;
-  status: 'Success' | 'Failed' | 'Running';
-  tablesCovered: string[];
+  lastRun: Date | null;
+  nextRun: Date | null;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface AuditLog {
-  id: string;
-  timestamp: string;
+  _id: ObjectId;
+  timestamp: Date;
   user: string;
-  entity: 'Table' | 'Field' | 'Relationship' | 'Integration';
+  entity: string;
   entityName: string;
-  action: 'Created' | 'Updated' | 'Deleted';
+  action: string;
   details: string;
 }
 
@@ -71,4 +115,16 @@ export interface ConversionProgress {
   progress: number;
   message: string;
   error?: string;
+}
+
+export interface ValueField {
+  _id: ObjectId;
+  name: string;
+  tableId: ObjectId;
+  type: string;
+  alternativeNames?: string[];
+  description?: string;
+  kgStatus: 'Added to KG' | 'Not Added';
+  createdAt: Date;
+  updatedAt: Date;
 }

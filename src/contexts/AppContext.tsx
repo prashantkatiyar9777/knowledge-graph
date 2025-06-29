@@ -1,138 +1,110 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'editor' | 'viewer';
-  avatar: string;
-}
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  read: boolean;
-  timestamp: Date;
-}
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import useDataStore from '../stores/dataStore';
 
 interface AppContextType {
-  user: User | null;
-  notifications: Notification[];
-  unreadNotifications: number;
-  isOnboarded: boolean;
-  isOnboarding: boolean;
-  isNavOpen: boolean;
-  showTableMetadataEditor: boolean;
-  showRelationshipEditor: boolean;
-  showSyncJobEditor: boolean;
-  selectedTableForEdit: any;
-  selectedRelationshipForEdit: any;
-  addNotification: (notification: Omit<Notification, 'id' | 'read' | 'timestamp'>) => void;
-  markNotificationAsRead: (id: string) => void;
-  markAllNotificationsAsRead: () => void;
-  setIsOnboarded: (value: boolean) => void;
-  setIsOnboarding: (value: boolean) => void;
-  toggleNav: () => void;
-  setShowTableMetadataEditor: (value: boolean) => void;
-  setShowRelationshipEditor: (value: boolean) => void;
-  setShowSyncJobEditor: (value: boolean) => void;
-  setSelectedTableForEdit: (table: any) => void;
-  setSelectedRelationshipForEdit: (relationship: any) => void;
+  isLoading: boolean;
+  error: string | null;
+  clearError: () => void;
+  retryLoad: () => void;
 }
-
-const defaultUser: User = {
-  id: 'user-1',
-  name: 'Prashant Katiyar',
-  email: 'prashant.katiyar@innovapptive.com',
-  role: 'admin',
-  avatar: 'P',
-};
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(defaultUser);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
-  const [isOnboarding, setIsOnboarding] = useState<boolean>(false);
-  const [isNavOpen, setIsNavOpen] = useState<boolean>(false);
-  const [showTableMetadataEditor, setShowTableMetadataEditor] = useState(false);
-  const [showRelationshipEditor, setShowRelationshipEditor] = useState(false);
-  const [showSyncJobEditor, setShowSyncJobEditor] = useState(false);
-  const [selectedTableForEdit, setSelectedTableForEdit] = useState<any>(null);
-  const [selectedRelationshipForEdit, setSelectedRelationshipForEdit] = useState<any>(null);
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds
 
-  const unreadNotifications = notifications.filter(n => !n.read).length;
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { fetchSources, fetchTables, fetchAuditLogs, fetchSyncJobs, isLoading, error } = useDataStore();
+  const [appError, setAppError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  const addNotification = (notification: Omit<Notification, 'id' | 'read' | 'timestamp'>) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: `notification-${Date.now()}`,
-      read: false,
-      timestamp: new Date(),
-    };
-    
-    setNotifications(prev => [newNotification, ...prev]);
+  const loadInitialData = async () => {
+    console.log(`Loading initial data... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+    try {
+      const results = await Promise.allSettled([
+        fetchSources().then(() => console.log('Sources loaded')),
+        fetchTables().then(() => console.log('Tables loaded')),
+        fetchAuditLogs().then(() => console.log('Audit logs loaded')),
+        fetchSyncJobs().then(() => console.log('Sync jobs loaded'))
+      ]);
+
+      const errors = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map(result => result.reason);
+
+      if (errors.length > 0) {
+        console.error('Some data failed to load:', errors);
+        throw new Error('Failed to load some data. Check console for details.');
+      }
+
+      console.log('All initial data loaded successfully');
+      setRetryCount(0); // Reset retry count on success
+      setAppError(null);
+    } catch (err) {
+      console.error('Error loading initial data:', err);
+      if (retryCount < MAX_RETRIES - 1) {
+        setRetryCount(prev => prev + 1);
+        setAppError(`Failed to load data. Retrying in ${RETRY_DELAY/1000} seconds... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        setTimeout(loadInitialData, RETRY_DELAY);
+      } else {
+        setAppError(`Failed to load data after ${MAX_RETRIES} attempts. Please check your connection and try again.`);
+      }
+    }
   };
 
-  const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === id 
-          ? { ...notification, read: true } 
-          : notification
-      )
-    );
+  useEffect(() => {
+    console.log('AppProvider mounted');
+    loadInitialData();
+  }, [fetchSources, fetchTables, fetchAuditLogs, fetchSyncJobs]);
+
+  const clearError = () => {
+    setAppError(null);
+    setRetryCount(0);
   };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notification => ({ ...notification, read: true }))
-    );
+  const retryLoad = () => {
+    clearError();
+    loadInitialData();
   };
 
-  const toggleNav = () => {
-    setIsNavOpen(prev => !prev);
-  };
+  console.log('AppProvider rendering with:', { isLoading, error: appError || error, retryCount });
 
   return (
-    <AppContext.Provider 
-      value={{ 
-        user, 
-        notifications, 
-        unreadNotifications,
-        isOnboarded,
-        isOnboarding,
-        isNavOpen,
-        showTableMetadataEditor,
-        showRelationshipEditor,
-        showSyncJobEditor,
-        selectedTableForEdit,
-        selectedRelationshipForEdit,
-        addNotification, 
-        markNotificationAsRead,
-        markAllNotificationsAsRead,
-        setIsOnboarded,
-        setIsOnboarding,
-        toggleNav,
-        setShowTableMetadataEditor,
-        setShowRelationshipEditor,
-        setShowSyncJobEditor,
-        setSelectedTableForEdit,
-        setSelectedRelationshipForEdit
-      }}
-    >
+    <AppContext.Provider value={{ isLoading, error: appError || error, clearError, retryLoad }}>
       {children}
+      {(appError || error) && (
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg">
+          <p className="font-bold">Error</p>
+          <p className="mb-2">{appError || error}</p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={retryLoad}
+              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+            <button
+              onClick={clearError}
+              className="px-2 py-1 text-red-600 hover:text-red-800 transition-colors"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-white"></div>
+        </div>
+      )}
     </AppContext.Provider>
   );
-};
+}
 
-export const useApp = () => {
+export function useApp() {
   const context = useContext(AppContext);
   if (context === undefined) {
     throw new Error('useApp must be used within an AppProvider');
   }
   return context;
-};
+}

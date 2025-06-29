@@ -8,17 +8,17 @@ import Navbar from '../components/common/Navbar';
 import Sidebar from '../components/common/Sidebar';
 
 // Pages
-import Dashboard from '../pages/Dashboard';
-import DashboardBuilder from '../pages/DashboardBuilder';
-import GraphViewer from '../pages/GraphViewer';
-import Tables from '../pages/Tables';
-import Fields from '../pages/Fields';
-import TableDetails from '../pages/TableDetails';
-import Relationships from '../pages/Relationships';
-import FormsResponses from '../pages/FormsResponses';
-import DataSync from '../pages/DataSync';
-import AuditLog from '../pages/AuditLog';
-import Settings from '../pages/Settings';
+import Dashboard from '../pages/v1/Dashboard';
+import DashboardBuilder from '../pages/v1/DashboardBuilder';
+import GraphViewer from '../pages/v1/GraphViewer';
+import Tables from '../pages/v1/Tables';
+import Fields from '../pages/v1/Fields';
+import TableDetails from '../pages/v1/TableDetails';
+import Relationships from '../pages/v1/Relationships';
+import FormsResponses from '../pages/v1/FormsResponses';
+import DataSync from '../pages/v1/DataSync';
+import AuditLog from '../pages/v1/AuditLog';
+import Settings from '../pages/v1/Settings';
 
 // Version 2 Pages
 import Overview from '../pages/v2/Overview';
@@ -27,15 +27,17 @@ import Workflows from '../pages/v2/Workflows';
 import AccessControl from '../pages/v2/AccessControl';
 import Team from '../pages/v2/Team';
 import V2Settings from '../pages/v2/V2Settings';
-import PlatformTables from '../pages/PlatformTables';
+import PlatformTables from '../pages/v1/PlatformTables';
 import TableFields from '../pages/v2/TableFields';
 
-import NotFound from '../pages/NotFound';
+import NotFound from '../pages/v1/NotFound';
 
 const AppLayout: React.FC = () => {
-  const { isOnboarded } = useApp();
+  const { error } = useApp();
   const { version } = useVersionStore();
   const location = useLocation();
+
+  console.log('AppLayout rendering with version:', version);
 
   const renderRoutes = () => {
     if (version === 1) {
