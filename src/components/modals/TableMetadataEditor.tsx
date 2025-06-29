@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Plus, Search } from 'lucide-react';
 import { Modal, Input, Button } from '../ui';
-import { TableData } from '../../types';
+import { Table } from '../../types';
 import { cn } from '../../utils/cn';
 
 interface TableMetadataEditorProps {
   isOpen: boolean;
   onClose: () => void;
-  table: TableData | null;
-  onSave: (updates: Partial<TableData>) => void;
+  table: Table | null;
+  onSave: (updates: Partial<Table>) => void;
 }
 
 export const TableMetadataEditor: React.FC<TableMetadataEditorProps> = ({
@@ -17,7 +17,7 @@ export const TableMetadataEditor: React.FC<TableMetadataEditorProps> = ({
   table,
   onSave
 }) => {
-  const [alternateNames, setAlternateNames] = useState<string[]>(table?.alternateNames || []);
+  const [alternateNames, setAlternateNames] = useState<string[]>(table?.alternativeNames || []);
   const [newAlternateName, setNewAlternateName] = useState('');
   const [description, setDescription] = useState(table?.description || '');
   const [showFieldPicker, setShowFieldPicker] = useState(false);
@@ -27,7 +27,7 @@ export const TableMetadataEditor: React.FC<TableMetadataEditorProps> = ({
 
   useEffect(() => {
     if (table) {
-      setAlternateNames(table.alternateNames || []);
+      setAlternateNames(table.alternativeNames || []);
       setDescription(table.description || '');
     }
   }, [table]);
@@ -81,11 +81,20 @@ export const TableMetadataEditor: React.FC<TableMetadataEditorProps> = ({
   const handleSave = () => {
     if (!table) return;
     
-    onSave({
+    const updates = {
       ...table,
+      alternativeNames: alternateNames,
+      description
+    };
+    
+    console.log('Saving table updates:', {
+      tableId: table._id,
+      updates,
       alternateNames,
       description
     });
+    
+    onSave(updates);
   };
 
   if (!table) return null;
@@ -119,12 +128,12 @@ export const TableMetadataEditor: React.FC<TableMetadataEditorProps> = ({
               <h3 className="text-lg font-medium text-slate-900">{table.name}</h3>
               <div className="flex items-center gap-2 mt-1 text-sm text-slate-600">
                 <span className="px-2.5 py-1 bg-white rounded-md border border-slate-200 font-medium">
-                  {table.source}
+                  {typeof table.source === 'object' && table.source !== null ? table.source.name : 'Unknown Source'}
                 </span>
                 <span>•</span>
-                <span>{table.fields} fields</span>
+                <span>{table.fieldsCount ?? 0} fields</span>
                 <span>•</span>
-                <span>{table.records?.toLocaleString() ?? '0'} records</span>
+                <span>{table.recordsCount?.toLocaleString() ?? '0'} records</span>
               </div>
             </div>
           </div>
@@ -263,7 +272,7 @@ export const TableMetadataEditor: React.FC<TableMetadataEditorProps> = ({
       </Modal.Body>
 
       <Modal.Footer>
-        <div className="flex justify-between">
+        <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>

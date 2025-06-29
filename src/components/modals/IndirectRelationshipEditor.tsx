@@ -37,52 +37,61 @@ const IndirectRelationshipEditor: React.FC<IndirectRelationshipEditorProps> = ({
     }
   }, [isOpen, fetchRelationships]);
 
+  // Find all paths between start and end tables
+  const findPaths = (startTable: string, endTable: string, visited = new Set<string>(), currentPath: string[] = []): string[][] => {
+    const paths: string[][] = [];
+    
+    // Get all relationships where the current table is the source
+    const outgoingRelationships = relationships.filter(rel => 
+      rel.fromTable === startTable && !visited.has(rel.toTable || '')
+    );
+    
+    for (const rel of outgoingRelationships) {
+      if (!rel.toTable) continue;
+      visited.add(rel.toTable);
+      
+      if (rel.toTable === endTable) {
+        paths.push([...currentPath, rel.toTable]);
+      } else {
+        const subPaths = findPaths(
+          rel.toTable,
+          endTable,
+          visited,
+          [...currentPath, rel.toTable]
+        );
+        paths.push(...subPaths);
+      }
+      
+      visited.delete(rel.toTable);
+    }
+    
+    return paths;
+  };
+  
+  // Get unique table names from relationships
+  const uniqueTables = Array.from(new Set(relationships
+    .filter(rel => rel.fromTable)
+    .map(rel => rel.fromTable)
+  ));
+
   // Find all possible indirect relationship paths
   const indirectPaths = useMemo(() => {
     const paths: RelationshipPath[] = [];
     
-    const findPaths = (
-      startTable: string,
-      currentPath: string[],
-      usedRelationships: Relationship[],
-      visited: Set<string>
-    ) => {
-      if (currentPath.length > 1 && currentPath.length <= 4) {
+    uniqueTables.forEach(table => {
+      const pathsFromTable = findPaths(table, '', new Set([table]));
+      pathsFromTable.forEach(path => {
         paths.push({
-          path: [...currentPath],
-          relationships: [...usedRelationships]
+          path: path,
+          relationships: relationships.filter(rel => 
+            rel.fromTable === path[0] && rel.toTable === path[path.length - 1]
+          )
         });
-      }
-
-      if (currentPath.length >= 4) return;
-
-      const availableRelationships = relationships.filter(rel => 
-        rel.sourceTable?.name === startTable && !visited.has(rel.targetTable?.name || '')
-      );
-
-      for (const rel of availableRelationships) {
-        if (!rel.targetTable?.name) continue;
-        visited.add(rel.targetTable.name);
-        findPaths(
-          rel.targetTable.name,
-          [...currentPath, rel.targetTable.name],
-          [...usedRelationships, rel],
-          new Set(visited)
-        );
-        visited.delete(rel.targetTable.name);
-      }
-    };
-
-    const tables = new Set(relationships
-      .filter(rel => rel.sourceTable?.name)
-      .map(rel => rel.sourceTable.name)
-    );
-    tables.forEach(table => {
-      findPaths(table, [table], [], new Set([table]));
+      });
     });
 
     return paths;
-  }, [relationships]);
+  }, [relationships, findPaths, uniqueTables]);
 
   // Filter paths based on search term
   const filteredPaths = indirectPaths.filter(path =>

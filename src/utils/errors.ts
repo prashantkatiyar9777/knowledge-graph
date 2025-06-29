@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from './logger.js';
 
 export class AppError extends Error {
   constructor(
@@ -64,12 +64,21 @@ export function handleError(error: Error | AppError): void {
   }
 }
 
+interface ApiErrorResponse {
+  error?: {
+    message?: string;
+    code?: string;
+    details?: Record<string, unknown>;
+  };
+}
+
 export async function handleApiResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData.error?.message || response.statusText;
-    const code = errorData.error?.code;
-    const details = errorData.error?.details;
+    const errorData = await response.json().catch(() => ({} as ApiErrorResponse));
+    const errorResponse = errorData as ApiErrorResponse;
+    const message = errorResponse.error?.message || response.statusText;
+    const code = errorResponse.error?.code;
+    const details = errorResponse.error?.details;
 
     switch (response.status) {
       case 400:
@@ -87,7 +96,8 @@ export async function handleApiResponse<T>(response: Response): Promise<T> {
     }
   }
 
-  return response.json();
+  const data = await response.json();
+  return data as T;
 }
 
 export function assertNonNullish<T>(

@@ -1,21 +1,33 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "node",
+    "outDir": "dist",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "isolatedModules": false,
     "esModuleInterop": true,
-    "strict": true,
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
     "skipLibCheck": true,
-    "outDir": "dist/server",
-    "rootDir": ".",
+    "forceConsistentCasingInFileNames": true,
+    "declaration": false,
+    "declarationMap": false,
     "allowJs": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "resolveJsonModule": true
   },
-  "include": ["server.ts", "src/**/*"],
-  "exclude": ["node_modules", "dist", "src/main.tsx", "src/App.tsx", "src/components"]
-} 
+  "include": ["server.ts", "src/lib/**/*", "src/models/**/*", "src/services/**/*", "src/utils/**/*", "src/pages/api/**/*"],
+  "exclude": [
+    "node_modules",
+    "src/components/**/*",
+    "src/contexts/**/*",
+    "src/hooks/**/*",
+    "src/layouts/**/*",
+    "src/pages/v1/**/*",
+    "src/pages/v2/**/*",
+    "src/stores/**/*",
+    "src/App.tsx",
+    "src/main.tsx"
+  ]
+}

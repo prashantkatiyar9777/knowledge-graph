@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { MongoDBService } from '../services/mongodb.service';
-import { Table, Source, AuditLog, SyncJob, Relationship, ValueField } from '../types';
+import { Table, Source, AuditLog, SyncJob, DirectRelationship, LegacyRelationship, ValueField } from '../types';
 
 interface DataStore {
   sources: Source[];
@@ -18,10 +18,10 @@ interface DataStore {
   fetchAuditLogs: () => Promise<void>;
   fetchSyncJobs: () => Promise<void>;
   setSelectedSource: (sourceId: string | null) => void;
-  relationships: Relationship[];
-  inverseRelationships: Relationship[];
-  indirectRelationships: Relationship[];
-  selfRelationships: Relationship[];
+  relationships: DirectRelationship[];
+  inverseRelationships: LegacyRelationship[];
+  indirectRelationships: LegacyRelationship[];
+  selfRelationships: LegacyRelationship[];
   users: any[];
   fetchRelationships: () => Promise<void>;
   fetchInverseRelationships: () => Promise<void>;
@@ -70,6 +70,13 @@ const useDataStore = create<DataStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const tables = await MongoDBService.getTables();
+      console.log('Fetched tables:', {
+        tablesCount: tables.length,
+        sampleTable: tables[0] ? {
+          name: tables[0].name,
+          source: tables[0].source
+        } : null
+      });
       set({ tables, isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
@@ -123,8 +130,14 @@ const useDataStore = create<DataStore>((set, get) => ({
   fetchRelationships: async () => {
     try {
       set({ isLoading: true, error: null });
-      const relationships = await MongoDBService.getRelationships();
-      set({ relationships, isLoading: false });
+      const response = await MongoDBService.getRelationships();
+      set({ 
+        relationships: response.direct,
+        inverseRelationships: response.inverse,
+        indirectRelationships: response.indirect,
+        selfRelationships: response.self,
+        isLoading: false 
+      });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
@@ -133,8 +146,8 @@ const useDataStore = create<DataStore>((set, get) => ({
   fetchInverseRelationships: async () => {
     try {
       set({ isLoading: true, error: null });
-      const inverseRelationships = await MongoDBService.getInverseRelationships();
-      set({ inverseRelationships, isLoading: false });
+      const response = await MongoDBService.getRelationships();
+      set({ inverseRelationships: response.inverse, isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
@@ -143,8 +156,8 @@ const useDataStore = create<DataStore>((set, get) => ({
   fetchIndirectRelationships: async () => {
     try {
       set({ isLoading: true, error: null });
-      const indirectRelationships = await MongoDBService.getIndirectRelationships();
-      set({ indirectRelationships, isLoading: false });
+      const response = await MongoDBService.getRelationships();
+      set({ indirectRelationships: response.indirect, isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
@@ -153,8 +166,8 @@ const useDataStore = create<DataStore>((set, get) => ({
   fetchSelfRelationships: async () => {
     try {
       set({ isLoading: true, error: null });
-      const selfRelationships = await MongoDBService.getSelfRelationships();
-      set({ selfRelationships, isLoading: false });
+      const response = await MongoDBService.getRelationships();
+      set({ selfRelationships: response.self, isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }

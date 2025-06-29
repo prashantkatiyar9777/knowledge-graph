@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import useDataStore from '../stores/dataStore';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import useDataStore from '../stores/dataStore.js';
 
 interface AppContextType {
   isLoading: boolean;
@@ -14,31 +14,24 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { fetchSources, fetchTables, fetchAuditLogs, fetchSyncJobs, isLoading, error } = useDataStore();
+  const { fetchSources, fetchTables, fetchAuditLogs, fetchSyncJobs, isLoading: storeLoading, error: storeError } = useDataStore();
   const [appError, setAppError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     console.log(`Loading initial data... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
     try {
-      const results = await Promise.allSettled([
-        fetchSources().then(() => console.log('Sources loaded')),
-        fetchTables().then(() => console.log('Tables loaded')),
-        fetchAuditLogs().then(() => console.log('Audit logs loaded')),
-        fetchSyncJobs().then(() => console.log('Sync jobs loaded'))
+      setIsLoading(true);
+      await Promise.all([
+        fetchSources(),
+        fetchTables(),
+        fetchAuditLogs(),
+        fetchSyncJobs()
       ]);
-
-      const errors = results
-        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-        .map(result => result.reason);
-
-      if (errors.length > 0) {
-        console.error('Some data failed to load:', errors);
-        throw new Error('Failed to load some data. Check console for details.');
-      }
-
+      
       console.log('All initial data loaded successfully');
-      setRetryCount(0); // Reset retry count on success
+      setRetryCount(0);
       setAppError(null);
     } catch (err) {
       console.error('Error loading initial data:', err);
@@ -49,33 +42,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         setAppError(`Failed to load data after ${MAX_RETRIES} attempts. Please check your connection and try again.`);
       }
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [fetchSources, fetchTables, fetchAuditLogs, fetchSyncJobs, retryCount]);
 
   useEffect(() => {
     console.log('AppProvider mounted');
-    loadInitialData();
-  }, [fetchSources, fetchTables, fetchAuditLogs, fetchSyncJobs]);
+    let mounted = true;
 
-  const clearError = () => {
+    const initializeData = async () => {
+      if (!mounted) return;
+      try {
+        await loadInitialData();
+      } catch (error) {
+        console.error('Error in initial data load:', error);
+      }
+    };
+
+    initializeData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [loadInitialData]);
+
+  const clearError = useCallback(() => {
     setAppError(null);
     setRetryCount(0);
-  };
+  }, []);
 
-  const retryLoad = () => {
+  const retryLoad = useCallback(() => {
     clearError();
     loadInitialData();
-  };
+  }, [clearError, loadInitialData]);
 
-  console.log('AppProvider rendering with:', { isLoading, error: appError || error, retryCount });
+  const error = appError || storeError;
+  const loading = isLoading || storeLoading;
 
   return (
-    <AppContext.Provider value={{ isLoading, error: appError || error, clearError, retryLoad }}>
+    <AppContext.Provider value={{ isLoading: loading, error, clearError, retryLoad }}>
       {children}
-      {(appError || error) && (
+      {error && (
         <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg">
           <p className="font-bold">Error</p>
-          <p className="mb-2">{appError || error}</p>
+          <p className="mb-2">{error}</p>
           <div className="flex justify-end gap-2">
             <button
               onClick={retryLoad}
@@ -92,7 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
-      {isLoading && (
+      {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-white"></div>
         </div>

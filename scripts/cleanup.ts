@@ -1,43 +1,59 @@
-import { config } from 'dotenv';
 import mongoose from 'mongoose';
-import connectDB from '../src/lib/mongodb.js';
-
-// Load environment variables from .env file
-config();
-
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/knowledge_graph';
+import { logger } from '../src/utils/logger.js';
 
 async function cleanup() {
   try {
-    console.log('Connecting to MongoDB...');
-    console.log('Using connection string:', MONGODB_URI.replace(/(mongodb(?:\+srv)?:\/\/)([^:]+):([^@]+)@/, '$1****:****@'));
+    // Connect to MongoDB
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/knowledge-graph');
     
-    const connection = await mongoose.connect(MONGODB_URI);
-    console.log('MongoDB connected successfully!');
-
-    if (!connection.connection.db) {
-      throw new Error('Database connection not established');
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Failed to get MongoDB database instance');
     }
 
-    // Get all collections
-    const collections = await connection.connection.db.collections();
+    // Check if old relationships collection exists
+    const collections = await db.listCollections().toArray();
+    const relationshipsExists = collections.some(col => col.name === 'relationships');
+    
+    if (relationshipsExists) {
+      // Check if all data has been migrated
+      const oldCount = await db.collection('relationships').countDocuments();
+      const [directCount, inverseCount, indirectCount, selfCount] = await Promise.all([
+        db.collection('directrelationships').countDocuments(),
+        db.collection('inverserelationships').countDocuments(),
+        db.collection('indirectrelationships').countDocuments(),
+        db.collection('selfrelationships').countDocuments()
+      ]);
 
-    // Drop each collection
-    for (const collection of collections) {
-      console.log(`Dropping collection: ${collection.collectionName}`);
-      await collection.drop().catch(err => {
-        if (err.code === 26) {
-          console.log(`Collection ${collection.collectionName} does not exist.`);
-        } else {
-          throw err;
+      const totalNewCount = directCount + inverseCount + indirectCount + selfCount;
+      
+      logger.info('Collection counts:', {
+        oldCollection: oldCount,
+        newCollections: {
+          direct: directCount,
+          inverse: inverseCount,
+          indirect: indirectCount,
+          self: selfCount,
+          total: totalNewCount
         }
       });
+
+      if (totalNewCount >= oldCount) {
+        // Safe to delete the old collection
+        await db.collection('relationships').drop();
+        logger.info('Successfully dropped old relationships collection');
+      } else {
+        logger.warn('Not safe to drop old collection - new collections have fewer documents');
+        logger.warn('Please verify data migration before dropping the old collection');
+      }
+    } else {
+      logger.info('Old relationships collection does not exist');
     }
 
-    console.log('All collections dropped successfully!');
+    await mongoose.disconnect();
     process.exit(0);
-  } catch (error: any) {
-    console.error('Cleanup failed:', error);
+  } catch (error) {
+    logger.error('Cleanup failed:', { error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   }
 }

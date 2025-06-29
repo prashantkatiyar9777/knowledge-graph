@@ -16,7 +16,8 @@
       "use": "@vercel/static-build",
       "config": { 
         "distDir": "dist",
-        "installCommand": "npm install --legacy-peer-deps"
+        "installCommand": "npm install --legacy-peer-deps",
+        "buildCommand": "npm run build"
       }
     }
   ],
@@ -26,14 +27,16 @@
       "dest": "/server.ts"
     },
     {
-      "handle": "filesystem"
+      "src": "^/assets/(.*)",
+      "dest": "/dist/assets/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "src": "^/(?!api).*",
+      "dest": "/dist/index.html"
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "MONGODB_URI": "@mongodb_uri"
   }
 } 

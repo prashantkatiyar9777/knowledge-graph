@@ -3,9 +3,13 @@ import mongoose from 'mongoose';
 const sourceSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
-  description: String,
+  description: {
+    type: String,
+    default: ''
+  },
   type: {
     type: String,
     required: true,
@@ -16,12 +20,18 @@ const sourceSchema = new mongoose.Schema({
     required: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: {
+    transform: function(doc, ret) {
+      ret.id = ret._id;
+      return ret;
+    }
+  }
 });
 
 // Index for faster queries
 sourceSchema.index({ name: 1 });
 
-const Source = mongoose.model('Source', sourceSchema);
+const Source = mongoose.models.Source || mongoose.model('Source', sourceSchema);
 
 export default Source; 

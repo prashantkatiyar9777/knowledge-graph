@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { useVersionStore } from '../stores/versionStore';
@@ -37,9 +37,9 @@ const AppLayout: React.FC = () => {
   const { version } = useVersionStore();
   const location = useLocation();
 
-  console.log('AppLayout rendering with version:', version);
-
-  const renderRoutes = () => {
+  const routes = useMemo(() => {
+    console.log('AppLayout rendering with version:', version);
+    
     if (version === 1) {
       return (
         <Routes>
@@ -58,24 +58,24 @@ const AppLayout: React.FC = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       );
-    } else {
-      return (
-        <Routes>
-          <Route path="/" element={<Navigate to="/overview" replace />} />
-          <Route path="/overview" element={<Overview />} />
-          <Route path="/dashboard-builder" element={<DashboardBuilder />} />
-          <Route path="/platform-tables" element={<PlatformTables />} />
-          <Route path="/fields" element={<TableFields />} />
-          <Route path="/graph" element={<KnowledgeGraph />} />
-          <Route path="/workflows" element={<Workflows />} />
-          <Route path="/access-control" element={<AccessControl />} />
-          <Route path="/team" element={<Team />} />
-          <Route path="/settings" element={<V2Settings />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      );
     }
-  };
+    
+    return (
+      <Routes>
+        <Route path="/" element={<Navigate to="/overview" replace />} />
+        <Route path="/overview" element={<Overview />} />
+        <Route path="/dashboard-builder" element={<DashboardBuilder />} />
+        <Route path="/platform-tables" element={<PlatformTables />} />
+        <Route path="/fields" element={<TableFields />} />
+        <Route path="/graph" element={<KnowledgeGraph />} />
+        <Route path="/workflows" element={<Workflows />} />
+        <Route path="/access-control" element={<AccessControl />} />
+        <Route path="/team" element={<Team />} />
+        <Route path="/settings" element={<V2Settings />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    );
+  }, [version]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -83,11 +83,11 @@ const AppLayout: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-auto p-6">
-          {renderRoutes()}
+          {routes}
         </main>
       </div>
     </div>
   );
 };
 
-export default AppLayout;
+export default React.memo(AppLayout);

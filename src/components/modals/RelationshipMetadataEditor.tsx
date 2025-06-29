@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Modal, Input, Button } from '../ui';
 import { X, Plus } from 'lucide-react';
-import { Relationship } from '../../types';
+import { DirectRelationship, LegacyRelationship } from '../../types';
 
 interface RelationshipMetadataEditorProps {
   isOpen: boolean;
   onClose: () => void;
-  relationship: Relationship;
-  onSave: (updates: Partial<Relationship>) => void;
+  relationship: DirectRelationship | LegacyRelationship;
+  onSave: (updates: Partial<DirectRelationship | LegacyRelationship>) => void;
 }
 
 const RelationshipMetadataEditor: React.FC<RelationshipMetadataEditorProps> = ({
@@ -34,6 +34,28 @@ const RelationshipMetadataEditor: React.FC<RelationshipMetadataEditorProps> = ({
 
   if (!relationship) return null;
 
+  const isDirectRelationship = (rel: DirectRelationship | LegacyRelationship): rel is DirectRelationship => {
+    return 'fieldName' in rel && 'tableName' in rel && 'mappedTo' in rel;
+  };
+
+  const getRelationshipDisplay = () => {
+    if (isDirectRelationship(relationship)) {
+      return {
+        name: relationship.fieldName,
+        from: `${(relationship.tableName as any)?.name || 'N/A'}.${relationship.fieldName}`,
+        to: `${(relationship.mappedTo as any)?.name || 'N/A'}.${relationship.mappedField}`
+      };
+    } else {
+      return {
+        name: relationship.name,
+        from: `${relationship.fromTable}.${relationship.fromField}`,
+        to: `${relationship.toTable}.${relationship.toField}`
+      };
+    }
+  };
+
+  const display = getRelationshipDisplay();
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <Modal.Header>
@@ -45,11 +67,11 @@ const RelationshipMetadataEditor: React.FC<RelationshipMetadataEditorProps> = ({
         <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-medium text-slate-900">{relationship.name}</h3>
+              <h3 className="text-lg font-medium text-slate-900">{display.name}</h3>
               <div className="flex items-center gap-2 mt-1 text-sm text-slate-600">
-                <span>From: {relationship.sourceTable.name}.{relationship.sourceField.name}</span>
-                <span>•</span>
-                <span>To: {relationship.targetTable.name}.{relationship.targetField.name}</span>
+                <span>From: {display.from}</span>
+                <div className="h-4" />
+                <span>To: {display.to}</span>
               </div>
             </div>
           </div>

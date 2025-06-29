@@ -14,6 +14,16 @@ const tableSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  alternativeNames: {
+    type: [String],
+    default: []
+  },
+  source: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Source',
+    required: true,
+    autopopulate: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -25,8 +35,17 @@ const tableSchema = new mongoose.Schema({
 });
 
 // Create indexes
-tableSchema.index({ name: 1 });
 tableSchema.index({ serialNumber: 1 });
+tableSchema.index({ source: 1 });
+
+// Always populate source field
+tableSchema.pre('find', function() {
+  this.populate('source');
+});
+
+tableSchema.pre('findOne', function() {
+  this.populate('source');
+});
 
 const Table = mongoose.models.Table || mongoose.model('Table', tableSchema);
 

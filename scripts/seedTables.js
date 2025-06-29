@@ -1,286 +1,66 @@
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const tableSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  serialNumber: {
-    type: Number,
-    required: true
-  },
-  description: {
-    type: String,
-    default: ''
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-const Table = mongoose.models.Table || mongoose.model('Table', tableSchema);
-
-const tables = [
-  { serialNumber: 1, name: '360Widget' },
-  { serialNumber: 2, name: 'AlChatHistorySIA' },
-  { serialNumber: 3, name: 'AlDashboard' },
-  { serialNumber: 4, name: 'AlFunctionalLocation' },
-  { serialNumber: 5, name: 'AlPlansFeedback' },
-  { serialNumber: 6, name: 'AlTranslations' },
-  { serialNumber: 7, name: 'AlWidgets' },
-  { serialNumber: 8, name: 'Al_Issue_WO_Creation' },
-  { serialNumber: 9, name: 'API_Errors' },
-  { serialNumber: 10, name: 'ActivityLog' },
-  { serialNumber: 11, name: 'Address' },
-  { serialNumber: 12, name: 'AiForm' },
-  { serialNumber: 13, name: 'AiSection' },
-  { serialNumber: 14, name: 'Alert' },
-  { serialNumber: 15, name: 'AlertString' },
-  { serialNumber: 16, name: 'ApiKey' },
-  { serialNumber: 17, name: 'ApprovalRequests' },
-  { serialNumber: 18, name: 'Asset' },
-  { serialNumber: 19, name: 'Asset360Dashboard' },
-  { serialNumber: 20, name: 'Asset360Widget' },
-  { serialNumber: 21, name: 'Asset360WidgetData' },
-  { serialNumber: 22, name: 'AssetClass' },
-  { serialNumber: 23, name: 'AssetReference' },
-  { serialNumber: 24, name: 'AssetSeeds' },
-  { serialNumber: 25, name: 'Assets' },
-  { serialNumber: 26, name: 'Attachment' },
-  { serialNumber: 27, name: 'AuthoredFormDetails' },
-  { serialNumber: 28, name: 'AuthoredFormLanguage' },
-  { serialNumber: 29, name: 'AvevaPI_Signals' },
-  { serialNumber: 30, name: 'BusinessKPI' },
-  { serialNumber: 31, name: 'Configuration' },
-  { serialNumber: 32, name: 'ConfigurationV3' },
-  { serialNumber: 33, name: 'Conversation' },
-  { serialNumber: 34, name: 'CustomShiftLog' },
-  { serialNumber: 35, name: 'DScheduleTrigger' },
-  { serialNumber: 36, name: 'DScheduleTriggerHistory' },
-  { serialNumber: 37, name: 'Dashboard' },
-  { serialNumber: 38, name: 'DashboardSchema' },
-  { serialNumber: 39, name: 'DataPermissions' },
-  { serialNumber: 40, name: 'DataSet' },
-  { serialNumber: 41, name: 'Datasets' },
-  { serialNumber: 42, name: 'DeltaHistory' },
-  { serialNumber: 43, name: 'DigitalForm' },
-  { serialNumber: 44, name: 'ERP' },
-  { serialNumber: 45, name: 'ERPDeltaToken' },
-  { serialNumber: 46, name: 'ERPMasterData' },
-  { serialNumber: 47, name: 'ERPMasterDataV2' },
-  { serialNumber: 48, name: 'ERPMasterPermit' },
-  { serialNumber: 49, name: 'ERPTableMappings' },
-  { serialNumber: 50, name: 'Equipments' },
-  { serialNumber: 51, name: 'FilterTemplate' },
-  { serialNumber: 52, name: 'Form' },
-  { serialNumber: 53, name: 'FormAssignmentMapping' },
-  { serialNumber: 54, name: 'FormAssignmnetMapping' },
-  { serialNumber: 55, name: 'FormFieldResponse' },
-  { serialNumber: 56, name: 'FormSubmission' },
-  { serialNumber: 57, name: 'FormSubmittedWOCount' },
-  { serialNumber: 58, name: 'FunctionalLocation' },
-  { serialNumber: 59, name: 'FunctionalLocations' },
-  { serialNumber: 60, name: 'GeneralSetting' },
-  { serialNumber: 61, name: 'GeneralSettingTemplate' },
-  { serialNumber: 62, name: 'GlobalPicklist' },
-  { serialNumber: 63, name: 'Goodslssue' },
-  { serialNumber: 64, name: 'ISkill' },
-  { serialNumber: 65, name: 'ISkillM' },
-  { serialNumber: 66, name: 'Inspection' },
-  { serialNumber: 67, name: 'Integration' },
-  { serialNumber: 68, name: 'IntegrationDetail' },
-  { serialNumber: 69, name: 'IntegrationStatus' },
-  { serialNumber: 70, name: 'InventoryAccuracy' },
-  { serialNumber: 71, name: 'Issue' },
-  { serialNumber: 72, name: 'Issueltem' },
-  { serialNumber: 73, name: 'IssueListPreviewTemplate' },
-  { serialNumber: 74, name: 'IssueLog' },
-  { serialNumber: 75, name: 'IssueSeeds' },
-  { serialNumber: 76, name: 'IssueTask' },
-  { serialNumber: 77, name: 'Issues' },
-  { serialNumber: 78, name: 'IssuesActivity' },
-  { serialNumber: 79, name: 'IssuesCause' },
-  { serialNumber: 80, name: 'IssuesLogHistory' },
-  { serialNumber: 81, name: 'Jha' },
-  { serialNumber: 82, name: 'KnowledgeRepositoryCategory' },
-  { serialNumber: 83, name: 'KnowledgeRepositoryDocumentLink' },
-  { serialNumber: 84, name: 'Language' },
-  { serialNumber: 85, name: 'Localisation' },
-  { serialNumber: 86, name: 'Location' },
-  { serialNumber: 87, name: 'LocationClassChar' },
-  { serialNumber: 88, name: 'LocationPartner' },
-  { serialNumber: 89, name: 'LocationReference' },
-  { serialNumber: 90, name: 'LocationSeeds' },
-  { serialNumber: 91, name: 'Locations' },
-  { serialNumber: 92, name: 'LogFormSubmission' },
-  { serialNumber: 93, name: 'MTTR' },
-  { serialNumber: 94, name: 'MasterBO' },
-  { serialNumber: 95, name: 'MasterForm' },
-  { serialNumber: 96, name: 'MasterFormLogics' },
-  { serialNumber: 97, name: 'MasterFormPage' },
-  { serialNumber: 98, name: 'MasterFormPageSection' },
-  { serialNumber: 99, name: 'MasterFormPageSectionField' },
-  { serialNumber: 100, name: 'MasterFormPageSectionFieldLogic' },
-  { serialNumber: 101, name: 'MasterFormSections' },
-  { serialNumber: 102, name: 'MasterlssueCodeGroup' },
-  { serialNumber: 103, name: 'MasterlssueCodeGroupCatalog' },
-  { serialNumber: 104, name: 'MasterlssuePartsCodeltem' },
-  { serialNumber: 105, name: 'MasterPermit' },
-  { serialNumber: 106, name: 'MasterRound' },
-  { serialNumber: 107, name: 'MasterRoundEntityForm' },
-  { serialNumber: 108, name: 'MasterRoundSchedule' },
-  { serialNumber: 109, name: 'MasterRoundTemplate' },
-  { serialNumber: 110, name: 'MasterWorkInstruction' },
-  { serialNumber: 111, name: 'MasterWorkInstructionMapping' },
-  { serialNumber: 112, name: 'MasterWorkInstructionTest' },
-  { serialNumber: 113, name: 'MasterWorkOrderTask' },
-  { serialNumber: 114, name: 'Master_permission' },
-  { serialNumber: 115, name: 'Material' },
-  { serialNumber: 116, name: 'MaterialCounted' },
-  { serialNumber: 117, name: 'MateriaIV2' },
-  { serialNumber: 118, name: 'MccSpocTransaction' },
-  { serialNumber: 119, name: 'MeasuringPoint' },
-  { serialNumber: 120, name: 'MeasuringPointDocument' },
-  { serialNumber: 121, name: 'MeasuringPointSeeds' },
-  { serialNumber: 122, name: 'Message' },
-  { serialNumber: 123, name: 'MixPanelData' },
-  { serialNumber: 124, name: 'MobileAppPreference' },
-  { serialNumber: 125, name: 'MobileAppPreferenceTemplate' },
-  { serialNumber: 126, name: 'NeoCache' },
-  { serialNumber: 127, name: 'NewlssueListTemplate' },
-  { serialNumber: 128, name: 'NewlssueTemplate' },
-  { serialNumber: 129, name: 'NoOfGLOrderDone' },
-  { serialNumber: 130, name: 'NoOfGRsDone' },
-  { serialNumber: 131, name: 'NoOfWorkOrderKitted' },
-  { serialNumber: 132, name: 'NotificationCodeCategory' },
-  { serialNumber: 133, name: 'OperationKPI' },
-  { serialNumber: 134, name: 'OutboundLogs' },
-  { serialNumber: 135, name: 'OutboundMapping' },
-  { serialNumber: 136, name: 'PMTOCM' },
-  { serialNumber: 137, name: 'PMWorkOrderTimeTracking' },
-  { serialNumber: 138, name: 'Permission' },
-  { serialNumber: 139, name: 'Permit' },
-  { serialNumber: 140, name: 'PermitJha' },
-  { serialNumber: 141, name: 'PermitReport' },
-  { serialNumber: 142, name: 'PlannerGroup' },
-  { serialNumber: 143, name: 'Plant' },
-  { serialNumber: 144, name: 'Plants' },
-  { serialNumber: 145, name: 'Positions' },
-  { serialNumber: 146, name: 'ProcessExecutionHeartbeat' },
-  { serialNumber: 147, name: 'Product' },
-  { serialNumber: 148, name: 'RCA' },
-  { serialNumber: 149, name: 'RaceUsers' },
-  { serialNumber: 150, name: 'ReductionInPaperWO' },
-  { serialNumber: 151, name: 'Report' },
-  { serialNumber: 152, name: 'ReportSchema' },
-  { serialNumber: 153, name: 'RiskMatrix' },
-  { serialNumber: 154, name: 'RiskMatrixAlResponse' },
-  { serialNumber: 155, name: 'Role' },
-  { serialNumber: 156, name: 'Roles' },
-  { serialNumber: 157, name: 'Round' },
-  { serialNumber: 158, name: 'RoundPlanAttachment' },
-  { serialNumber: 159, name: 'RoundPlanAttachments' },
-  { serialNumber: 160, name: 'RoundPlanDetail' },
-  { serialNumber: 161, name: 'RoundPlanList' },
-  { serialNumber: 162, name: 'RoundPlanScheduleConfiguration' },
-  { serialNumber: 163, name: 'RoundPlanTemplateDetail' },
-  { serialNumber: 164, name: 'RoundPlanTemplateList' },
-  { serialNumber: 165, name: 'RoundPlanTemplateUsage' },
-  { serialNumber: 166, name: 'Rounds' },
-  { serialNumber: 167, name: 'SHRFormFieldResponse' },
-  { serialNumber: 168, name: 'SHRRound' },
-  { serialNumber: 169, name: 'SaveFormula' },
-  { serialNumber: 170, name: 'Scheduler' },
-  { serialNumber: 171, name: 'SelectedLanguages' },
-  { serialNumber: 172, name: 'Shift' },
-  { serialNumber: 173, name: 'ShiftHandoverReport' },
-  { serialNumber: 174, name: 'ShiftLog' },
-  { serialNumber: 175, name: 'ShiftLogTemplate' },
-  { serialNumber: 176, name: 'Shifts' },
-  { serialNumber: 177, name: 'Skill' },
-  { serialNumber: 178, name: 'SkillM' },
-  { serialNumber: 179, name: 'TablePreference' },
-  { serialNumber: 180, name: 'TemplateForms' },
-  { serialNumber: 181, name: 'Tenant' },
-  { serialNumber: 182, name: 'TenantV3' },
-  { serialNumber: 183, name: 'TimeSheet' },
-  { serialNumber: 184, name: 'TimeSheetSeeds' },
-  { serialNumber: 185, name: 'TrainingContent' },
-  { serialNumber: 186, name: 'TransactionalCompoundObject' },
-  { serialNumber: 187, name: 'TranslationAl' },
-  { serialNumber: 188, name: 'Translations' },
-  { serialNumber: 189, name: 'UnitOfMeasurement' },
-  { serialNumber: 190, name: 'UpdateAssetHistory' },
-  { serialNumber: 191, name: 'UpdateHistory' },
-  { serialNumber: 192, name: 'UpdatelssueHistory' },
-  { serialNumber: 193, name: 'UpdateMasterFormHistory' },
-  { serialNumber: 194, name: 'UpdateMeasPointHistory' },
-  { serialNumber: 195, name: 'UpdatePermitHistory' },
-  { serialNumber: 196, name: 'UpdateUserHistory' },
-  { serialNumber: 197, name: 'UpdateWorkOrderHistory' },
-  { serialNumber: 198, name: 'User' },
-  { serialNumber: 199, name: 'UserAttribute' },
-  { serialNumber: 200, name: 'UserAvailability' },
-  { serialNumber: 201, name: 'UserCapacity' },
-  { serialNumber: 202, name: 'UserFilter' },
-  { serialNumber: 203, name: 'UserFilters' },
-  { serialNumber: 204, name: 'UserGroup' },
-  { serialNumber: 205, name: 'UserGroups' },
-  { serialNumber: 206, name: 'UserPreference' },
-  { serialNumber: 207, name: 'UserSkill' },
-  { serialNumber: 208, name: 'Users' },
-  { serialNumber: 209, name: 'Value360Plant' },
-  { serialNumber: 210, name: 'WOAI' },
-  { serialNumber: 211, name: 'WOAIResponse' },
-  { serialNumber: 212, name: 'WOComponentAddedCount' },
-  { serialNumber: 213, name: 'Widget' },
-  { serialNumber: 214, name: 'WidgetConfiguration' },
-  { serialNumber: 215, name: 'WidgetSchema' },
-  { serialNumber: 216, name: 'WorkCenter' },
-  { serialNumber: 217, name: 'WorkCenters' },
-  { serialNumber: 218, name: 'WorkInstructionActivity' },
-  { serialNumber: 219, name: 'WorkInstructionMapping' },
-  { serialNumber: 220, name: 'WorkInstructionStep' },
-  { serialNumber: 221, name: 'WorkOrder' },
-  { serialNumber: 222, name: 'WorkOrderAttachment' },
-  { serialNumber: 223, name: 'WorkOrderComponent' },
-  { serialNumber: 224, name: 'WorkOrderFormFollowUpNotification' },
-  { serialNumber: 225, name: 'WorkOrderGoodslssue' },
-  { serialNumber: 226, name: 'WorkOrderOperation' },
-  { serialNumber: 227, name: 'WorkOrderOperationConfirmation' },
-  { serialNumber: 228, name: 'WorkOrderPermit' },
-  { serialNumber: 229, name: 'Workflows' },
-  { serialNumber: 230, name: 'Workorder OperationConfirmation' },
-  { serialNumber: 231, name: 'WrenchTime' }
-];
+import 'dotenv/config';
+import { seedSources } from './seedSources.js';
 
 async function seedTables() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Connected to MongoDB');
+    // First seed sources and get the source ID
+    const sourceIds = await seedSources();
+    const eamSourceId = sourceIds[0]; // Get the EAM source ID
 
-    // Delete existing tables
-    await Table.deleteMany({});
-    console.log('Cleared existing tables');
+    // Connect to MongoDB using the URI from .env
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      throw new Error('MONGODB_URI not found in environment variables');
+    }
+    
+    console.log('Connecting to MongoDB...');
+    await mongoose.connect(uri);
+    console.log('Connected successfully');
+    
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('Failed to get MongoDB database instance');
+    }
 
-    // Insert new tables
-    await Table.insertMany(tables);
-    console.log('Inserted new tables');
+    // Tables to create
+    const tables = [
+      {
+        name: 'AssetRegistry',
+        description: 'Registry of all assets',
+        source: eamSourceId,
+        inKnowledgeGraph: true
+      },
+      {
+        name: 'LocationHierarchy',
+        description: 'Hierarchy of physical locations',
+        source: eamSourceId,
+        inKnowledgeGraph: true
+      },
+      {
+        name: 'Equipment',
+        description: 'Equipment details',
+        source: eamSourceId,
+        inKnowledgeGraph: true
+      },
+      {
+        name: 'WorkOrders',
+        description: 'Work orders for maintenance',
+        source: eamSourceId,
+        inKnowledgeGraph: true
+      }
+    ];
 
-    console.log('Seeding completed successfully');
+    // Insert tables
+    const result = await db.collection('tables').insertMany(tables);
+    console.log(`Created ${result.insertedCount} tables`);
+
+    console.log('Tables created successfully');
+    await mongoose.disconnect();
+    console.log('Disconnected from MongoDB');
     process.exit(0);
   } catch (error) {
-    console.error('Error seeding tables:', error);
+    console.error('Seeding failed:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 }

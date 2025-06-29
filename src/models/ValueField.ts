@@ -35,9 +35,8 @@ const valueFieldSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster queries
-valueFieldSchema.index({ tableId: 1 });
-valueFieldSchema.index({ name: 1 });
+// Compound index for faster queries and to ensure uniqueness within a table
+valueFieldSchema.index({ name: 1, tableId: 1 }, { unique: true });
 
 const ValueField = mongoose.models.ValueField || mongoose.model('ValueField', valueFieldSchema);
 

@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { X, Plus } from 'lucide-react';
 import { Modal, Input, Button } from '../ui';
-import { TableField } from '../../types';
+import { ValueField, Table } from '../../types';
 import { cn } from '../../utils/cn';
 
 interface FieldMetadataEditorProps {
   isOpen: boolean;
   onClose: () => void;
-  field: TableField & { tableName: string; isRelationship?: boolean; mappedToTable?: string } | null;
-  onSave: (updates: Partial<TableField>) => void;
+  field: ValueField | null;
+  onSave: (updates: Partial<ValueField>) => void;
 }
 
 const FieldMetadataEditor: React.FC<FieldMetadataEditorProps> = ({
@@ -17,25 +17,28 @@ const FieldMetadataEditor: React.FC<FieldMetadataEditorProps> = ({
   field,
   onSave
 }) => {
-  const [alternateNames, setAlternateNames] = useState<string[]>(
-    field?.alternateName ? field.alternateName.split(',').map(n => n.trim()) : []
+  const [alternativeNames, setAlternativeNames] = useState<string[]>(
+    field?.alternativeNames || []
   );
   const [newAlternateName, setNewAlternateName] = useState('');
   const [description, setDescription] = useState(field?.description || '');
-  const [exampleValue, setExampleValue] = useState('');
 
   const handleSave = () => {
     if (!field) return;
     
     onSave({
       ...field,
-      alternateName: alternateNames.join(', '),
+      alternativeNames,
       description,
     });
     onClose();
   };
 
   if (!field) return null;
+
+  const tableName = field.tableId && typeof field.tableId === 'object' && 'name' in field.tableId 
+    ? field.tableId.name 
+    : 'Unknown Table';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
@@ -54,13 +57,7 @@ const FieldMetadataEditor: React.FC<FieldMetadataEditorProps> = ({
                   {field.type}
                 </span>
                 <span>•</span>
-                <span>From table: {field.tableName}</span>
-                {field.isRelationship && field.mappedToTable && (
-                  <>
-                    <span>•</span>
-                    <span>Mapped to: {field.mappedToTable}</span>
-                  </>
-                )}
+                <span>From table: {tableName}</span>
               </div>
             </div>
           </div>
@@ -81,7 +78,7 @@ const FieldMetadataEditor: React.FC<FieldMetadataEditorProps> = ({
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newAlternateName.trim()) {
-                    setAlternateNames([...alternateNames, newAlternateName.trim()]);
+                    setAlternativeNames([...alternativeNames, newAlternateName.trim()]);
                     setNewAlternateName('');
                   }
                 }}
@@ -91,7 +88,7 @@ const FieldMetadataEditor: React.FC<FieldMetadataEditorProps> = ({
               variant="primary"
               onClick={() => {
                 if (newAlternateName.trim()) {
-                  setAlternateNames([...alternateNames, newAlternateName.trim()]);
+                  setAlternativeNames([...alternativeNames, newAlternateName.trim()]);
                   setNewAlternateName('');
                 }
               }}
@@ -103,16 +100,16 @@ const FieldMetadataEditor: React.FC<FieldMetadataEditorProps> = ({
             </Button>
           </div>
           <div className="min-h-[2.5rem] p-3 bg-slate-50 rounded-lg border border-slate-200">
-            {alternateNames.length > 0 ? (
+            {alternativeNames.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {alternateNames.map((name, index) => (
+                {alternativeNames.map((name, index) => (
                   <div
                     key={index}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white rounded-md border border-slate-200 shadow-sm"
                   >
                     <span className="text-sm text-slate-700">{name}</span>
                     <button
-                      onClick={() => setAlternateNames(alternateNames.filter((_, i) => i !== index))}
+                      onClick={() => setAlternativeNames(alternativeNames.filter((_, i) => i !== index))}
                       className="text-slate-400 hover:text-red-500 transition-colors"
                     >
                       <X size={14} />
@@ -141,22 +138,6 @@ const FieldMetadataEditor: React.FC<FieldMetadataEditorProps> = ({
             placeholder="Describe this field's purpose and usage..."
           />
         </div>
-
-        {/* Value Field Specific */}
-        {!field.isRelationship && (
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-900">
-              Example Values
-            </label>
-            <input
-              type="text"
-              value={exampleValue}
-              onChange={(e) => setExampleValue(e.target.value)}
-              placeholder="Enter example values (comma-separated)"
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-            />
-          </div>
-        )}
       </Modal.Body>
 
       <Modal.Footer>

@@ -4,7 +4,7 @@ import { Card, Button, Badge } from "../../components/ui";
 import { cn } from "../../utils/cn";
 import FieldMetadataEditor from "../../components/modals/FieldMetadataEditor";
 import useDataStore from "../../stores/dataStore";
-import { Table, Field } from '../types';
+import { Table, ValueField as Field } from '../../types';
 
 const Fields: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,9 +19,11 @@ const Fields: React.FC = () => {
   const { tables, fields, fetchTables, fetchFields } = useDataStore();
 
   useEffect(() => {
-    fetchTables();
-    fetchFields();
-  }, [fetchTables, fetchFields]);
+    const loadData = async () => {
+      await Promise.all([fetchTables(), fetchFields()]);
+    };
+    loadData();
+  }, []);
 
   const fieldTypes = [
     { value: 'all', label: 'All Types' },
@@ -40,14 +42,17 @@ const Fields: React.FC = () => {
   // Filter fields based on type and other criteria
   const filteredFields = (fields || []).filter((field: Field) => {
     const searchTermLower = searchTerm.toLowerCase();
-    const tableName = tables.find((t: Table) => t._id?.toString() === field.tableId?.toString())?.name || '';
+    const tableName = typeof field.tableId === 'object' && field.tableId !== null ? field.tableId.name : '';
     const matchesSearch = 
       (field.name || '').toLowerCase().includes(searchTermLower) ||
       (field.alternativeNames || []).some(name => (name || '').toLowerCase().includes(searchTermLower)) ||
       (field.description || '').toLowerCase().includes(searchTermLower) ||
       tableName.toLowerCase().includes(searchTermLower);
     
-    const matchesTable = selectedTable === 'all' || field.tableId?.toString() === selectedTable;
+    const matchesTable = selectedTable === 'all' || 
+      (typeof field.tableId === 'object' && field.tableId !== null ? 
+        field.tableId._id.toString() === selectedTable : 
+        field.tableId?.toString() === selectedTable);
     const matchesType = selectedType === 'all' || field.type === selectedType;
     
     return matchesSearch && matchesTable && matchesType;
@@ -63,9 +68,16 @@ const Fields: React.FC = () => {
     setSelectedField(field);
   };
 
-  const handleSaveField = () => {
-    setSelectedField(null);
-    fetchFields();
+  const handleSaveField = async (field: Partial<Field>) => {
+    if (!field._id) return;
+    
+    try {
+      await useDataStore.getState().updateField(field._id.toString(), field);
+      await fetchFields();
+      setSelectedField(null);
+    } catch (error) {
+      console.error('Error updating field:', error);
+    }
   };
 
   return (
@@ -237,11 +249,11 @@ const Fields: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1.5 text-sm text-slate-600">
                       <Database size={14} />
-                      {tables.find(t => t._id?.toString() === field.tableId?.toString())?.name}
+                      {typeof field.tableId === 'object' && field.tableId !== null ? field.tableId.name : 'Unknown Table'}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="default" className="text-xs">
                       {field.type}
                     </Badge>
                   </td>
@@ -303,6 +315,7 @@ const Fields: React.FC = () => {
       {/* Field Editor Modal */}
       {selectedField && (
         <FieldMetadataEditor
+          isOpen={true}
           field={selectedField}
           onClose={() => setSelectedField(null)}
           onSave={handleSaveField}

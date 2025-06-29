@@ -2,10 +2,7 @@ import { handleApiResponse } from './errors.js';
 import { logger } from './logger.js';
 
 // Get API base URL from environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-if (!API_BASE_URL) {
-  throw new Error('VITE_API_URL environment variable is not set');
-}
+const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:3000/api';
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
@@ -44,10 +41,16 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       headers.set('Content-Type', 'application/json');
     }
 
+    // Convert headers to a plain object for logging
+    const headerObj: Record<string, string> = {};
+    headers.forEach((value, key) => {
+      headerObj[key] = value;
+    });
+
     logger.debug('Making API request', {
       method: init.method || 'GET',
       url: url.toString(),
-      headers: Object.fromEntries(headers.entries()),
+      headers: headerObj,
       params
     });
 

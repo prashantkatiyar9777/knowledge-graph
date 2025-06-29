@@ -9,14 +9,23 @@ import InverseRelationshipEditor from "../../components/modals/InverseRelationsh
 import SelfRelationshipEditor from "../../components/modals/SelfRelationshipEditor";
 import BulkSelfRelationshipEditor from "../../components/modals/BulkSelfRelationshipEditor";
 import IndirectRelationshipEditor from "../../components/modals/IndirectRelationshipEditor";
-import { Relationship } from '../../types';
+import { DirectRelationship, LegacyRelationship } from '../../types';
 import Loading from "../../components/ui/Loading";
 import ErrorBoundary from "../../components/ui/ErrorBoundary";
+
+// Type guards
+const isDirectRelationship = (rel: DirectRelationship | LegacyRelationship): rel is DirectRelationship => {
+  return 'fieldName' in rel && 'tableName' in rel && 'mappedTo' in rel;
+};
+
+const isLegacyRelationship = (rel: DirectRelationship | LegacyRelationship): rel is LegacyRelationship => {
+  return 'type' in rel && 'fromTable' in rel && 'fromField' in rel;
+};
 
 const Relationships: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'existing' | 'inverse' | 'indirect' | 'self'>('existing');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
+  const [selectedRelationship, setSelectedRelationship] = useState<DirectRelationship | LegacyRelationship | null>(null);
   const [selectedRelationships, setSelectedRelationships] = useState<string[]>([]);
   const [selectedInverseRelationships, setSelectedInverseRelationships] = useState<string[]>([]);
   const [selectedIndirectRelationships, setSelectedIndirectRelationships] = useState<string[]>([]);
@@ -78,27 +87,27 @@ const Relationships: React.FC = () => {
     }
   };
 
-  const handleSaveRelationship = (updates: Partial<Relationship>) => {
+  const handleSaveRelationship = (updates: Partial<DirectRelationship | LegacyRelationship>) => {
     console.log('Saving relationship updates:', updates);
     setSelectedRelationship(null);
   };
 
-  const handleSaveInverseRelationship = (relationship: Partial<Relationship>) => {
+  const handleSaveInverseRelationship = (relationship: Partial<DirectRelationship | LegacyRelationship>) => {
     console.log('Creating inverse relationship:', relationship);
     setShowInverseEditor(false);
   };
 
-  const handleSaveIndirectRelationship = (relationship: Partial<Relationship>) => {
+  const handleSaveIndirectRelationship = (relationship: Partial<DirectRelationship | LegacyRelationship>) => {
     console.log('Creating indirect relationship:', relationship);
     setShowIndirectEditor(false);
   };
 
-  const handleSaveSelfRelationship = (relationship: Partial<Relationship>) => {
+  const handleSaveSelfRelationship = (relationship: Partial<DirectRelationship | LegacyRelationship>) => {
     createSelfRelationship(relationship);
     setShowSelfRelationshipEditor(false);
   };
 
-  const handleSaveBulkSelfRelationships = (relationships: Partial<Relationship>[]) => {
+  const handleSaveBulkSelfRelationships = (relationships: Partial<DirectRelationship | LegacyRelationship>[]) => {
     createBulkSelfRelationships(relationships);
     setShowBulkSelfRelationshipEditor(false);
   };
@@ -215,53 +224,53 @@ const Relationships: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
-              {relationships.map((rel) => (
-                <tr key={rel._id.toString()} className="hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <input
-                      type="checkbox"
-                      className="rounded border-slate-300 text-primary focus:ring-primary"
-                      checked={selectedRelationships.includes(rel._id.toString())}
-                      onChange={() => toggleRelationshipSelection(rel._id.toString())}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.sourceField?.name || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.sourceTable?.name || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.targetTable?.name && rel.targetField?.name ? 
-                      `${rel.targetTable.name}.${rel.targetField.name}` : 
-                      'N/A'
-                    }
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {rel.alternativeNames?.map((name, i) => (
-                        <Badge key={i} variant="default">{name}</Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600 max-w-md truncate">
-                    {rel.description || 'No description'}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant={rel.kgStatus === 'Added to KG' ? "success" : "default"}>
-                      {rel.kgStatus || 'Not Added'}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<Edit2 size={16} />}
-                      onClick={() => setSelectedRelationship(rel)}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {relationships.map((rel) => {
+                if (!isDirectRelationship(rel)) return null;
+                return (
+                  <tr key={rel._id.toString()} className="hover:bg-slate-50">
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-primary focus:ring-primary"
+                        checked={selectedRelationships.includes(rel._id.toString())}
+                        onChange={() => toggleRelationshipSelection(rel._id.toString())}
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                      {rel.fieldName || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                      {(rel.tableName as any)?.name || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                      {(rel.mappedTo as any)?.name || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {rel.alternativeNames?.map((name, i) => (
+                          <Badge key={i} variant="default">{name}</Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600 max-w-md truncate">
+                      {rel.description || 'No description'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant={rel.inKnowledgeGraph ? "success" : "default"}>
+                        {rel.inKnowledgeGraph ? 'Added to KG' : 'Not Added'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={<Edit2 size={16} />}
+                        onClick={() => setSelectedRelationship(rel)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -327,13 +336,19 @@ const Relationships: React.FC = () => {
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Field Name
+                  Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Table Name
+                  From Table
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Mapped To
+                  From Field
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  To Table
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  To Field
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Alternative Names
@@ -361,16 +376,19 @@ const Relationships: React.FC = () => {
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.sourceField?.name || 'N/A'}
+                    {rel.name || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.sourceTable?.name || 'N/A'}
+                    {rel.fromTable || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.targetTable?.name && rel.targetField?.name ? 
-                      `${rel.targetTable.name}.${rel.targetField.name}` : 
-                      'N/A'
-                    }
+                    {rel.fromField || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    {rel.toTable || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    {rel.toField || 'N/A'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
@@ -383,8 +401,8 @@ const Relationships: React.FC = () => {
                     {rel.description || 'No description'}
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant={rel.kgStatus === 'Added to KG' ? "success" : "default"}>
-                      {rel.kgStatus || 'Not Added'}
+                    <Badge variant={rel.inKnowledgeGraph ? "success" : "default"}>
+                      {rel.inKnowledgeGraph ? 'Added to KG' : 'Not Added'}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -462,10 +480,25 @@ const Relationships: React.FC = () => {
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Table Path
+                  Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Name
+                  From Table
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  From Field
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Intermediate Table
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Intermediate Fields
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  To Table
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  To Field
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Alternative Names
@@ -492,41 +525,31 @@ const Relationships: React.FC = () => {
                       onChange={() => toggleIndirectRelationshipSelection(rel._id.toString())}
                     />
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      {(rel.tablePath || []).map((table: string, i: number) => (
-                        <React.Fragment key={i}>
-                          <span className="text-sm font-medium text-slate-900">
-                            {table}
-                          </span>
-                          {i < (rel.tablePath || []).length - 1 && (
-                            <ChevronRight size={16} className="text-slate-400" />
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    {rel.fromField || 'N/A'}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-slate-900">
-                      {rel.name}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    {rel.fromTable || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    {`${rel.intermediateTable}.${rel.intermediateFromField} -> ${rel.toTable}.${rel.toField}` || 'N/A'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      {(rel.alternativeNames || []).map((name: string, i: number) => (
+                      {rel.alternativeNames?.map((name, i) => (
                         <Badge key={i} variant="default">{name}</Badge>
                       ))}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600 max-w-md truncate">
-                    {rel.description}
+                    {rel.description || 'No description'}
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant={rel.inKnowledgeGraph ? "success" : "default"}>
-                      {rel.inKnowledgeGraph ? "In Knowledge Graph" : "Not in KG"}
+                      {rel.inKnowledgeGraph ? 'Added to KG' : 'Not Added'}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Button
                       variant="secondary"
                       size="sm"
@@ -608,22 +631,22 @@ const Relationships: React.FC = () => {
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Primary Table
+                  Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Reference Table
+                  Table
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Relationship Name
+                  From Field
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  To Field
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Alternative Names
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Created
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   KG Status
@@ -645,13 +668,16 @@ const Relationships: React.FC = () => {
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.primaryTable}
+                    {rel.name || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.referenceTable}
+                    {rel.fromTable || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    {rel.name}
+                    {rel.fromField || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    {rel.toField || 'N/A'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
@@ -661,17 +687,14 @@ const Relationships: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600 max-w-md truncate">
-                    {rel.description}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                    {new Date(rel.createdAt).toLocaleDateString()}
+                    {rel.description || 'No description'}
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant={rel.inKnowledgeGraph ? "success" : "default"}>
-                      {rel.inKnowledgeGraph ? "In Knowledge Graph" : "Not in KG"}
+                      {rel.inKnowledgeGraph ? 'Added to KG' : 'Not Added'}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Button
                       variant="secondary"
                       size="sm"

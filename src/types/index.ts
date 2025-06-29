@@ -30,18 +30,24 @@ export interface Source {
 export interface Table {
   _id: ObjectId;
   name: string;
-  alternativeNames?: string[];
-  sourceId: ObjectId;
+  serialNumber: number;
   description?: string;
-  fields: Field[];
-  fieldsCount: number;
-  recordsCount: number;
-  kgRecordsCount: number;
-  kgStatus: 'Added to KG' | 'Partially Added' | 'Not Added' | 'Error';
-  hasMetadata: boolean;
-  lastSync: Date;
+  source: {
+    _id: ObjectId;
+    name: string;
+    description?: string;
+    type: string;
+  };
   createdAt: Date;
   updatedAt: Date;
+  alternativeNames?: string[];
+  fields?: Field[];
+  fieldsCount?: number;
+  recordsCount?: number;
+  kgRecordsCount?: number;
+  kgStatus?: 'Added to KG' | 'Partially Added' | 'Not Added' | 'Error';
+  hasMetadata?: boolean;
+  lastSync?: Date;
 }
 
 export interface Field {
@@ -57,36 +63,46 @@ export interface Field {
   updatedAt: Date;
 }
 
-export interface Relationship {
+export interface DirectRelationship {
   _id: ObjectId;
-  name: string;
+  fieldName: string;
+  tableName: {
+    _id: ObjectId;
+    name: string;
+    description?: string;
+  };
+  mappedTo: {
+    _id: ObjectId;
+    name: string;
+    description?: string;
+  };
+  mappedField: string;
   alternativeNames?: string[];
   description?: string;
-  type: 'direct' | 'inverse' | 'indirect' | 'self';
-  sourceTable: {
-    _id: ObjectId;
-    name: string;
-  };
-  targetTable: {
-    _id: ObjectId;
-    name: string;
-  };
-  sourceField: {
-    _id: ObjectId;
-    name: string;
-  };
-  targetField: {
-    _id: ObjectId;
-    name: string;
-  };
-  tablePath?: string[];
-  primaryTable?: string;
-  referenceTable?: string;
-  inKnowledgeGraph?: boolean;
-  kgStatus: 'Added to KG' | 'Not Added';
+  inKnowledgeGraph: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface LegacyRelationship {
+  _id: ObjectId;
+  name: string;
+  type: 'inverse' | 'indirect' | 'self';
+  description?: string;
+  alternativeNames?: string[];
+  fromTable: string;
+  fromField: string;
+  toTable: string;
+  toField: string;
+  intermediateTable?: string;
+  intermediateFromField?: string;
+  intermediateToField?: string;
+  inKnowledgeGraph: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type Relationship = DirectRelationship | LegacyRelationship;
 
 export interface SyncJob {
   _id: ObjectId;
@@ -120,7 +136,7 @@ export interface ConversionProgress {
 export interface ValueField {
   _id: ObjectId;
   name: string;
-  tableId: ObjectId;
+  tableId: ObjectId | Table;  // Can be either ObjectId when unpopulated or Table when populated
   type: string;
   alternativeNames?: string[];
   description?: string;

@@ -1,150 +1,157 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
-import { connectToMongoDB } from './src/lib/mongodb.js';
-import Table from './src/models/Table.js';
-import Source from './src/models/Source.js';
-import AuditLog from './src/models/AuditLog.js';
-import SyncJob from './src/models/SyncJob.js';
-import { z } from 'zod';
-import { validate } from './src/middleware/validation.js';
-import { handleError, AppError } from './src/utils/errors.js';
-import { logger } from './src/utils/logger.js';
-import ValueField from './src/models/ValueField.js';
-import Relationship from './src/models/Relationship.js';
+import { connectToMongoDB } from './src/lib/mongodb';
+import { logger } from './src/utils/logger';
+import Table from './src/models/Table';
+import Source from './src/models/Source';
+import AuditLog from './src/models/AuditLog';
+import SyncJob from './src/models/SyncJob';
+import ValueField from './src/models/ValueField';
+import { DirectRelationship, InverseRelationship, IndirectRelationship, SelfRelationship } from './src/models/Relationship';
+
+// Import routers
+import fieldsRouter from './src/pages/api/fields';
+import tablesRouter from './src/pages/api/tables';
 
 const app = express();
+const port = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
 // Initialize MongoDB connection
-let isConnected = false;
-const initializeMongoDB = async () => {
-  try {
-    await connectToMongoDB();
-    isConnected = true;
-    logger.info('MongoDB connection initialized successfully');
-  } catch (error) {
-    logger.error('Failed to initialize MongoDB connection:', error);
-    throw error;
-  }
-};
+connectToMongoDB().catch((err) => {
+  logger.error('Failed to connect to MongoDB on startup:', { error: err.message });
+  process.exit(1);
+});
 
 // Health check endpoint
-app.get('/api/health', async (req, res) => {
+app.get('/api/health', async (_req, res) => {
   try {
-    // Check MongoDB connection
-    const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    const mongoError = mongoose.connection.readyState !== 1 ? 'MongoDB is not connected' : undefined;
+    const mongoose = await connectToMongoDB();
+    const isConnected = mongoose.connection.readyState === 1;
     
     res.json({
-      status: mongoStatus === 'connected' ? 'ok' : 'error',
-      mongodb: mongoStatus,
-      environment: process.env.NODE_ENV,
+      status: isConnected ? 'ok' : 'error',
+      mongodb: isConnected ? 'connected' : 'disconnected',
+      environment: process.env.NODE_ENV || 'development',
       timestamp: new Date().toISOString(),
-      error: mongoError
+      ...(isConnected ? {} : { error: 'MongoDB is not connected' })
     });
-  } catch (error) {
-    logger.error('Health check failed:', error);
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error('Unknown error');
+    logger.error('Health check failed:', { error: error.message });
     res.status(500).json({
       status: 'error',
-      error: 'Health check failed',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      mongodb: 'disconnected',
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+      error: error.message
     });
   }
 });
 
-// Middleware to check MongoDB connection
-const checkMongoDBConnection = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  try {
-    if (!isConnected || mongoose.connection.readyState !== 1) {
-      await initializeMongoDB();
-    }
-    next();
-  } catch (error) {
-    logger.error('Database connection error:', error);
-    return res.status(500).json({ 
-      error: 'Database connection error. Please try again later.',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+// Use routers
+app.use('/api/fields', fieldsRouter);
+app.use('/api/tables', tablesRouter);
 
-// Apply MongoDB connection check middleware to all API routes except health check
-app.use('/api', (req, res, next) => {
-  if (req.path === '/health') {
-    return next();
-  }
-  return checkMongoDBConnection(req, res, next);
-});
-
-// API Routes
-app.get('/api/tables', async (req, res) => {
-  try {
-    const tables = await Table.find().sort({ serialNumber: 1 });
-    res.json(tables);
-  } catch (error) {
-    logger.error('Error fetching tables:', error);
-    res.status(500).json({ error: 'Failed to fetch tables', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
-  }
-});
-
-app.get('/api/sources', async (req, res) => {
+// Direct API routes
+app.get('/api/sources', async (_req, res) => {
   try {
     const sources = await Source.find();
     res.json(sources);
-  } catch (error) {
-    logger.error('Error fetching sources:', error);
-    res.status(500).json({ error: 'Failed to fetch sources', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error('Unknown error');
+    logger.error('Failed to fetch sources:', { error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/audit-logs', async (req, res) => {
+app.get('/api/audit-logs', async (_req, res) => {
   try {
-    const auditLogs = await AuditLog.find().sort({ timestamp: -1 });
-    res.json(auditLogs);
-  } catch (error) {
-    logger.error('Error fetching audit logs:', error);
-    res.status(500).json({ error: 'Failed to fetch audit logs', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    const logs = await AuditLog.find();
+    res.json(logs);
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error('Unknown error');
+    logger.error('Failed to fetch audit logs:', { error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/sync-jobs', async (req, res) => {
+app.get('/api/sync-jobs', async (_req, res) => {
   try {
-    const syncJobs = await SyncJob.find().sort({ startTime: -1 });
-    res.json(syncJobs);
-  } catch (error) {
-    logger.error('Error fetching sync jobs:', error);
-    res.status(500).json({ error: 'Failed to fetch sync jobs', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    const jobs = await SyncJob.find();
+    res.json(jobs);
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error('Unknown error');
+    logger.error('Failed to fetch sync jobs:', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/relationships', async (_req, res) => {
+  try {
+    logger.info('Fetching relationships...');
+    await connectToMongoDB();
+
+    // Use Mongoose models with explicit collection names
+    const direct = await DirectRelationship.find()
+      .populate('tableName')
+      .populate('mappedTo')
+      .exec();
+    logger.info('Direct relationships:', { count: direct.length });
+
+    const inverse = await InverseRelationship.find().exec();
+    logger.info('Inverse relationships:', { count: inverse.length });
+
+    const indirect = await IndirectRelationship.find().exec();
+    logger.info('Indirect relationships:', { count: indirect.length });
+
+    const self = await SelfRelationship.find().exec();
+    logger.info('Self relationships:', { count: self.length });
+
+    res.json({
+      direct,
+      inverse,
+      indirect,
+      self
+    });
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error('Unknown error');
+    logger.error('Failed to fetch relationships:', { error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
 // Error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  logger.error('Unhandled error:', err);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? err.message : undefined
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error('Unhandled error:', { error: err.message, stack: err.stack });
+  res.status(500).json({
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });
 });
 
-// Initialize MongoDB connection immediately for both development and production
-initializeMongoDB().catch((error) => {
-  logger.error('Failed to initialize MongoDB:', error);
-  if (process.env.NODE_ENV === 'production') {
+// Start server
+app.listen(port, () => {
+  logger.info(`Server is running on port ${port}`);
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received. Starting graceful shutdown...');
+  try {
+    const mongoose = (await import('mongoose')).default;
+    await mongoose.disconnect();
+    logger.info('MongoDB disconnected through app termination');
+    process.exit(0);
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error('Unknown error');
+    logger.error('Error during graceful shutdown:', { error: error.message });
     process.exit(1);
   }
 });
-
-// For local development
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    logger.info(`Server running on port ${PORT}`);
-  });
-}
 
 // Export for Vercel
 export default app; 
